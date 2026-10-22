@@ -1,10 +1,10 @@
 import React from 'react';
-import { Tag } from 'App/State/TagsAppState';
 import Label from 'Components/Label';
 import { kinds } from 'Helpers/Props';
 import SeriesPoster from 'Series/SeriesPoster';
+import { Tag } from 'Tags/useTags';
 import { SuggestedSeries } from './SeriesSearchInput';
-import styles from './SeriesSearchResult.css';
+import styles from './SeriesSearchResult.module.css';
 
 interface Match {
   key: string;
@@ -45,6 +45,7 @@ function SeriesSearchResult(props: SeriesSearchResultProps) {
         size={250}
         lazy={false}
         overflow={true}
+        title={title}
       />
 
       <div className={styles.titles}>

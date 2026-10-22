@@ -30,7 +30,9 @@ namespace NzbDrone.Common.Disk
 
         public abstract long? GetAvailableSpace(string path);
         public abstract void InheritFolderPermissions(string filename);
-        public abstract void SetEveryonePermissions(string filename);
+        public abstract void SetCurrentUserPermissions(string filename);
+        public abstract void SetServiceAccountPermissions(string filename);
+        public abstract void RemoveEveryonePermissions(string filename);
         public abstract void SetFilePermissions(string path, string mask, string group);
         public abstract void SetPermissions(string path, string mask, string group);
         public abstract void CopyPermissions(string sourcePath, string targetPath);
@@ -238,11 +240,6 @@ namespace NzbDrone.Common.Disk
                 throw new IOException(string.Format("Source and destination can't be the same {0}", source));
             }
 
-            CloneFileInternal(source, destination, overwrite);
-        }
-
-        protected virtual void CloneFileInternal(string source, string destination, bool overwrite = false)
-        {
             CopyFileInternal(source, destination, overwrite);
         }
 
@@ -307,11 +304,6 @@ namespace NzbDrone.Common.Disk
         }
 
         public abstract bool TryCreateHardLink(string source, string destination);
-
-        public virtual bool TryCreateRefLink(string source, string destination)
-        {
-            return false;
-        }
 
         public void DeleteFolder(string path, bool recursive)
         {

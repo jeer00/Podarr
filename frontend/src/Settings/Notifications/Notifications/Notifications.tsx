@@ -1,30 +1,21 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { NotificationAppState } from 'App/State/SettingsAppState';
-import Card from 'Components/Card';
-import FieldSet from 'Components/FieldSet';
-import Icon from 'Components/Icon';
+import React, { useCallback, useState } from 'react';
 import PageSectionContent from 'Components/Page/PageSectionContent';
-import { icons } from 'Helpers/Props';
-import { fetchNotifications } from 'Store/Actions/settingsActions';
-import createSortedSectionSelector from 'Store/Selectors/createSortedSectionSelector';
-import NotificationModel from 'typings/Notification';
-import sortByProp from 'Utilities/Array/sortByProp';
+import AddCard from 'Components/SettingsCard/AddCard';
+import settingsCardStyles from 'Components/SettingsCard/SettingsCard.module.css';
+import { SelectedSchema } from 'Settings/useProviderSchema';
 import translate from 'Utilities/String/translate';
+import { useConnections, useSortedConnections } from '../useConnections';
 import AddNotificationModal from './AddNotificationModal';
 import EditNotificationModal from './EditNotificationModal';
 import Notification from './Notification';
-import styles from './Notifications.css';
 
 function Notifications() {
-  const dispatch = useDispatch();
+  const { error, isFetching, isFetched } = useConnections();
+  const items = useSortedConnections();
 
-  const { error, isFetching, isPopulated, items } = useSelector(
-    createSortedSectionSelector<NotificationModel, NotificationAppState>(
-      'settings.notifications',
-      sortByProp('name')
-    )
-  );
+  const [selectedSchema, setSelectedSchema] = useState<
+    SelectedSchema | undefined
+  >(undefined);
 
   const [isAddNotificationModalOpen, setIsAddNotificationModalOpen] =
     useState(false);
@@ -36,7 +27,8 @@ function Notifications() {
     setIsAddNotificationModalOpen(true);
   }, []);
 
-  const handleNotificationSelect = useCallback(() => {
+  const handleNotificationSelect = useCallback((selected: SelectedSchema) => {
+    setSelectedSchema(selected);
     setIsAddNotificationModalOpen(false);
     setIsEditNotificationModalOpen(true);
   }, []);
@@ -49,45 +41,36 @@ function Notifications() {
     setIsEditNotificationModalOpen(false);
   }, []);
 
-  useEffect(() => {
-    dispatch(fetchNotifications());
-  }, [dispatch]);
-
   return (
-    <FieldSet legend={translate('Connections')}>
-      <PageSectionContent
-        errorMessage={translate('NotificationsLoadError')}
-        error={error}
-        isFetching={isFetching}
-        isPopulated={isPopulated}
-      >
-        <div className={styles.notifications}>
-          {items.map((item) => (
-            <Notification key={item.id} {...item} />
-          ))}
+    <PageSectionContent
+      errorMessage={translate('ConnectionsLoadError')}
+      error={error}
+      isFetching={isFetching}
+      isPopulated={isFetched}
+    >
+      <div className={settingsCardStyles.grid}>
+        {items.map((item) => (
+          <Notification key={item.id} {...item} />
+        ))}
 
-          <Card
-            className={styles.addNotification}
-            onPress={handleAddNotificationPress}
-          >
-            <div className={styles.center}>
-              <Icon name={icons.ADD} size={45} />
-            </div>
-          </Card>
-        </div>
-
-        <AddNotificationModal
-          isOpen={isAddNotificationModalOpen}
-          onNotificationSelect={handleNotificationSelect}
-          onModalClose={handleAddNotificationModalClose}
+        <AddCard
+          label={translate('AddConnection')}
+          onPress={handleAddNotificationPress}
         />
+      </div>
 
-        <EditNotificationModal
-          isOpen={isEditNotificationModalOpen}
-          onModalClose={handleEditNotificationModalClose}
-        />
-      </PageSectionContent>
-    </FieldSet>
+      <AddNotificationModal
+        isOpen={isAddNotificationModalOpen}
+        onNotificationSelect={handleNotificationSelect}
+        onModalClose={handleAddNotificationModalClose}
+      />
+
+      <EditNotificationModal
+        isOpen={isEditNotificationModalOpen}
+        selectedSchema={selectedSchema}
+        onModalClose={handleEditNotificationModalClose}
+      />
+    </PageSectionContent>
   );
 }
 

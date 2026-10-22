@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import AppState from 'App/State/AppState';
+import { useNavigate } from 'react-router-dom';
 import Alert from 'Components/Alert';
-import FieldSet from 'Components/FieldSet';
 import FileBrowserModal from 'Components/FileBrowser/FileBrowserModal';
 import Icon from 'Components/Icon';
 import Button from 'Components/Link/Button';
@@ -10,31 +8,31 @@ import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import InlineMarkdown from 'Components/Markdown/InlineMarkdown';
 import PageContent from 'Components/Page/PageContent';
 import PageContentBody from 'Components/Page/PageContentBody';
+import PageHeading from 'Components/Page/PageHeading';
+import SectionHeading from 'Components/SectionHeading';
 import usePrevious from 'Helpers/Hooks/usePrevious';
-import { icons, kinds, sizes } from 'Helpers/Props';
+import { icons, kinds } from 'Helpers/Props';
 import RootFolders from 'RootFolder/RootFolders';
-import {
-  addRootFolder,
-  fetchRootFolders,
-} from 'Store/Actions/rootFolderActions';
-import useIsWindows from 'System/useIsWindows';
+import useRootFolders, { useAddRootFolder } from 'RootFolder/useRootFolders';
+import { useIsWindows } from 'System/Status/useSystemStatus';
 import { InputChanged } from 'typings/inputs';
 import translate from 'Utilities/String/translate';
-import styles from './ImportSeriesSelectFolder.css';
+import styles from './ImportSeriesSelectFolder.module.css';
 
 function ImportSeriesSelectFolder() {
-  const dispatch = useDispatch();
-  const { isFetching, isPopulated, isSaving, error, saveError, items } =
-    useSelector((state: AppState) => state.rootFolders);
+  const { isFetching, isFetched, error, data } = useRootFolders();
+  const { addRootFolder, isAdding, addError, newRootFolder } =
+    useAddRootFolder();
+  const navigate = useNavigate();
 
   const isWindows = useIsWindows();
 
   const [isAddNewRootFolderModalOpen, setIsAddNewRootFolderModalOpen] =
     useState(false);
 
-  const wasSaving = usePrevious(isSaving);
+  const wasAdding = usePrevious(isAdding);
 
-  const hasRootFolders = items.length > 0;
+  const hasRootFolders = data.length > 0;
   const goodFolderExample = isWindows ? 'C:\\tv shows' : '/tv shows';
   const badFolderExample = isWindows
     ? 'C:\\tv shows\\the simpsons'
@@ -50,53 +48,57 @@ function ImportSeriesSelectFolder() {
 
   const handleNewRootFolderSelect = useCallback(
     ({ value }: InputChanged<string>) => {
-      dispatch(addRootFolder({ path: value }));
+      addRootFolder({ path: value });
     },
-    [dispatch]
+    [addRootFolder]
   );
 
   useEffect(() => {
-    dispatch(fetchRootFolders());
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (!isSaving && wasSaving && !saveError) {
-      items.reduce((acc, item) => {
-        if (item.id > acc) {
-          return item.id;
-        }
-
-        return acc;
-      }, 0);
+    if (!isAdding && wasAdding && !addError && newRootFolder) {
+      navigate(`/add/import/${newRootFolder.id}`);
     }
-  }, [isSaving, wasSaving, saveError, items]);
+  }, [isAdding, wasAdding, addError, newRootFolder, navigate]);
 
   return (
     <PageContent title={translate('ImportSeries')}>
       <PageContentBody>
-        {isFetching && !isPopulated ? <LoadingIndicator /> : null}
+        <PageHeading
+          scope={translate('Media')}
+          title={translate('ImportSeries')}
+        />
+
+        {isFetching && !isFetched ? <LoadingIndicator /> : null}
 
         {!isFetching && error ? (
           <Alert kind={kinds.DANGER}>{translate('RootFoldersLoadError')}</Alert>
         ) : null}
 
-        {!error && isPopulated && (
+        {!error && isFetched ? (
           <div>
-            <div className={styles.header}>
-              {translate('LibraryImportSeriesHeader')}
-            </div>
+            <SectionHeading
+              title={translate('LibraryImportSeriesHeader')}
+              description={translate('LibraryImportSeriesDescription')}
+            />
 
-            <div className={styles.tips}>
-              {translate('LibraryImportTips')}
-              <ul>
-                <li className={styles.tip}>
+            <details className={styles.tips}>
+              <summary className={styles.tipsSummary}>
+                <Icon
+                  className={styles.tipsChevron}
+                  name={icons.EXPAND_INDETERMINATE}
+                  size={12}
+                />
+                {translate('LibraryImportTips')}
+              </summary>
+
+              <ul className={styles.tipsList}>
+                <li>
                   <InlineMarkdown
                     data={translate(
                       'LibraryImportTipsQualityInEpisodeFilename'
                     )}
                   />
                 </li>
-                <li className={styles.tip}>
+                <li>
                   <InlineMarkdown
                     data={translate('LibraryImportTipsSeriesUseRootFolder', {
                       goodFolderExample,
@@ -104,40 +106,31 @@ function ImportSeriesSelectFolder() {
                     })}
                   />
                 </li>
-                <li className={styles.tip}>
-                  {translate('LibraryImportTipsDontUseDownloadsFolder')}
-                </li>
+                <li>{translate('LibraryImportTipsDontUseDownloadsFolder')}</li>
               </ul>
-            </div>
+            </details>
 
-            {hasRootFolders ? (
-              <div className={styles.recentFolders}>
-                <FieldSet legend={translate('RootFolders')}>
-                  <RootFolders />
-                </FieldSet>
-              </div>
-            ) : null}
+            {hasRootFolders ? <RootFolders isSelectable={true} /> : null}
 
-            {!isSaving && saveError ? (
+            {!isAdding && addError ? (
               <Alert className={styles.addErrorAlert} kind={kinds.DANGER}>
                 {translate('AddRootFolderError')}
 
                 <ul>
-                  {Array.isArray(saveError.responseJSON) ? (
-                    saveError.responseJSON.map((e, index) => {
-                      return <li key={index}>{e.errorMessage}</li>;
-                    })
+                  {Array.isArray(addError.statusBody) ? (
+                    addError.statusBody.map((e, index) => (
+                      <li key={index}>{e.errorMessage}</li>
+                    ))
                   ) : (
-                    <li>{JSON.stringify(saveError.responseJSON)}</li>
+                    <li>{JSON.stringify(addError.statusBody)}</li>
                   )}
                 </ul>
               </Alert>
             ) : null}
 
-            <div className={hasRootFolders ? undefined : styles.startImport}>
+            <div className={styles.chooseFolderButtonContainer}>
               <Button
-                kind={kinds.PRIMARY}
-                size={sizes.LARGE}
+                kind={hasRootFolders ? kinds.DEFAULT : kinds.PRIMARY}
                 onPress={handleAddNewRootFolderPress}
               >
                 <Icon className={styles.importButtonIcon} name={icons.DRIVE} />
@@ -155,7 +148,7 @@ function ImportSeriesSelectFolder() {
               onModalClose={handleAddRootFolderModalClose}
             />
           </div>
-        )}
+        ) : null}
       </PageContentBody>
     </PageContent>
   );

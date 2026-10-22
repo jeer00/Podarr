@@ -1,20 +1,11 @@
 import React, { useCallback } from 'react';
-import { useSelect } from 'App/SelectContext';
-import PageToolbarButton, {
-  PageToolbarButtonProps,
-} from 'Components/Page/Toolbar/PageToolbarButton';
+import { useSelect } from 'App/Select/SelectContext';
+import PageToolbarButton from 'Components/Page/Toolbar/PageToolbarButton';
 import { icons } from 'Helpers/Props';
 import translate from 'Utilities/String/translate';
 
-interface SeriesIndexSelectAllButtonProps
-  extends Omit<PageToolbarButtonProps, 'iconName'> {
-  isSelectMode: boolean;
-}
-
-function SeriesIndexSelectAllButton(props: SeriesIndexSelectAllButtonProps) {
-  const { isSelectMode, overflowComponent } = props;
-  const [selectState, selectDispatch] = useSelect();
-  const { allSelected, allUnselected } = selectState;
+function SeriesIndexSelectAllButton() {
+  const { allSelected, allUnselected, selectAll, unselectAll } = useSelect();
 
   let icon = icons.SQUARE_MINUS;
 
@@ -25,19 +16,20 @@ function SeriesIndexSelectAllButton(props: SeriesIndexSelectAllButtonProps) {
   }
 
   const onPress = useCallback(() => {
-    selectDispatch({
-      type: allSelected ? 'unselectAll' : 'selectAll',
-    });
-  }, [allSelected, selectDispatch]);
+    if (allSelected) {
+      unselectAll();
+    } else {
+      selectAll();
+    }
+  }, [allSelected, selectAll, unselectAll]);
 
-  return isSelectMode ? (
+  return (
     <PageToolbarButton
       label={allSelected ? translate('UnselectAll') : translate('SelectAll')}
       iconName={icon}
-      overflowComponent={overflowComponent}
       onPress={onPress}
     />
-  ) : null;
+  );
 }
 
 export default SeriesIndexSelectAllButton;

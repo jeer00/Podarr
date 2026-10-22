@@ -1,65 +1,55 @@
 import React, { useCallback, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { NotificationAppState } from 'App/State/SettingsAppState';
 import Alert from 'Components/Alert';
 import Form from 'Components/Form/Form';
-import FormGroup from 'Components/Form/FormGroup';
-import FormInputGroup from 'Components/Form/FormInputGroup';
+import FormInput from 'Components/Form/FormInput';
+import FormInputHelpText from 'Components/Form/FormInputHelpText';
 import FormLabel from 'Components/Form/FormLabel';
+import FormRow from 'Components/Form/FormRow';
 import ProviderFieldFormGroup from 'Components/Form/ProviderFieldFormGroup';
 import Button from 'Components/Link/Button';
 import SpinnerErrorButton from 'Components/Link/SpinnerErrorButton';
-import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import ModalBody from 'Components/Modal/ModalBody';
 import ModalContent from 'Components/Modal/ModalContent';
 import ModalFooter from 'Components/Modal/ModalFooter';
 import ModalHeader from 'Components/Modal/ModalHeader';
 import usePrevious from 'Helpers/Hooks/usePrevious';
-import useShowAdvancedSettings from 'Helpers/Hooks/useShowAdvancedSettings';
 import { inputTypes, kinds } from 'Helpers/Props';
 import AdvancedSettingsButton from 'Settings/AdvancedSettingsButton';
-import {
-  saveNotification,
-  setNotificationFieldValue,
-  setNotificationValue,
-  testNotification,
-} from 'Store/Actions/settingsActions';
-import { createProviderSettingsSelectorHook } from 'Store/Selectors/createProviderSettingsSelector';
-import { InputChanged } from 'typings/inputs';
-import Notification from 'typings/Notification';
+import { useShowAdvancedSettings } from 'Settings/advancedSettingsStore';
+import { useManageConnection } from 'Settings/Notifications/useConnections';
+import { SelectedSchema } from 'Settings/useProviderSchema';
+import { EnhancedSelectInputChanged, InputChanged } from 'typings/inputs';
 import translate from 'Utilities/String/translate';
 import NotificationEventItems from './NotificationEventItems';
-import styles from './EditNotificationModalContent.css';
+import styles from './EditNotificationModalContent.module.css';
 
 export interface EditNotificationModalContentProps {
   id?: number;
+  selectedSchema?: SelectedSchema;
   onModalClose: () => void;
   onDeleteNotificationPress?: () => void;
 }
 
 function EditNotificationModalContent({
   id,
+  selectedSchema,
   onModalClose,
   onDeleteNotificationPress,
 }: EditNotificationModalContentProps) {
-  const dispatch = useDispatch();
   const showAdvancedSettings = useShowAdvancedSettings();
 
   const {
-    isFetching,
-    error,
-    isSaving,
-    isTesting = false,
-    saveError,
     item,
+    updateFieldValue,
+    updateValue,
+    saveProvider,
+    isSaving,
+    saveError,
+    testProvider,
+    isTesting,
     validationErrors,
     validationWarnings,
-  } = useSelector(
-    createProviderSettingsSelectorHook<Notification, NotificationAppState>(
-      'notifications',
-      id
-    )
-  );
+  } = useManageConnection(id, selectedSchema);
 
   const wasSaving = usePrevious(isSaving);
 
@@ -67,27 +57,30 @@ function EditNotificationModalContent({
 
   const handleInputChange = useCallback(
     (change: InputChanged) => {
-      // @ts-expect-error - actions are not typed
-      dispatch(setNotificationValue(change));
+      // @ts-expect-error - change is not yet typed
+      updateValue(change.name, change.value);
     },
-    [dispatch]
+    [updateValue]
   );
 
   const handleFieldChange = useCallback(
-    (change: InputChanged) => {
-      // @ts-expect-error - actions are not typed
-      dispatch(setNotificationFieldValue(change));
+    ({
+      name,
+      value,
+      additionalProperties,
+    }: EnhancedSelectInputChanged<unknown>) => {
+      updateFieldValue({ [name]: value, ...additionalProperties });
     },
-    [dispatch]
+    [updateFieldValue]
   );
 
   const handleTestPress = useCallback(() => {
-    dispatch(testNotification({ id }));
-  }, [id, dispatch]);
+    testProvider();
+  }, [testProvider]);
 
   const handleSavePress = useCallback(() => {
-    dispatch(saveNotification({ id }));
-  }, [id, dispatch]);
+    saveProvider();
+  }, [saveProvider]);
 
   useEffect(() => {
     if (wasSaving && !isSaving && !saveError) {
@@ -97,74 +90,65 @@ function EditNotificationModalContent({
 
   return (
     <ModalContent onModalClose={onModalClose}>
-      <ModalHeader>
+      <ModalHeader subtitle={id ? name.previousValue ?? name.value : undefined}>
         {id
           ? translate('EditConnectionImplementation', { implementationName })
           : translate('AddConnectionImplementation', { implementationName })}
       </ModalHeader>
-
       <ModalBody>
-        {isFetching ? <LoadingIndicator /> : null}
+        <Form
+          validationErrors={validationErrors}
+          validationWarnings={validationWarnings}
+        >
+          {message ? (
+            <Alert className={styles.message} kind={message.value.type}>
+              {message.value.message}
+            </Alert>
+          ) : null}
 
-        {!isFetching && !!error ? (
-          <Alert kind={kinds.DANGER}>{translate('AddNotificationError')}</Alert>
-        ) : null}
+          <FormRow>
+            <FormLabel>{translate('Name')}</FormLabel>
 
-        {!isFetching && !error ? (
-          <Form
-            validationErrors={validationErrors}
-            validationWarnings={validationWarnings}
-          >
-            {message ? (
-              <Alert className={styles.message} kind={message.value.type}>
-                {message.value.message}
-              </Alert>
-            ) : null}
-
-            <FormGroup>
-              <FormLabel>{translate('Name')}</FormLabel>
-
-              <FormInputGroup
-                type={inputTypes.TEXT}
-                name="name"
-                {...name}
-                onChange={handleInputChange}
-              />
-            </FormGroup>
-
-            <NotificationEventItems
-              item={item}
-              onInputChange={handleInputChange}
+            <FormInput
+              type={inputTypes.TEXT}
+              name="name"
+              {...name}
+              onChange={handleInputChange}
             />
+          </FormRow>
 
-            <FormGroup>
-              <FormLabel>{translate('Tags')}</FormLabel>
+          <NotificationEventItems
+            item={item}
+            onInputChange={handleInputChange}
+          />
 
-              <FormInputGroup
-                type={inputTypes.TAG}
-                name="tags"
-                helpText={translate('NotificationsTagsSeriesHelpText')}
-                {...tags}
-                onChange={handleInputChange}
+          {fields.map((field) => {
+            return (
+              <ProviderFieldFormGroup
+                key={field.name}
+                {...field}
+                advancedSettings={showAdvancedSettings}
+                provider="notification"
+                providerData={item}
+                onChange={handleFieldChange}
               />
-            </FormGroup>
+            );
+          })}
 
-            {fields.map((field) => {
-              return (
-                <ProviderFieldFormGroup
-                  key={field.name}
-                  {...field}
-                  advancedSettings={showAdvancedSettings}
-                  provider="notification"
-                  providerData={item}
-                  onChange={handleFieldChange}
-                />
-              );
-            })}
-          </Form>
-        ) : null}
+          <FormRow>
+            <FormLabel>{translate('Tags')}</FormLabel>
+            <FormInputHelpText
+              text={translate('NotificationsTagsSeriesHelpText')}
+            />
+            <FormInput
+              type={inputTypes.TAG}
+              name="tags"
+              {...tags}
+              onChange={handleInputChange}
+            />
+          </FormRow>
+        </Form>
       </ModalBody>
-
       <ModalFooter>
         {id ? (
           <Button

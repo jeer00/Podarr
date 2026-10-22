@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { CustomFilter, Filter } from 'App/State/AppState';
+import { CustomFilter, Filter } from 'Filters/Filter';
 import { icons } from 'Helpers/Props';
 import translate from 'Utilities/String/translate';
 import FilterMenuContent from './FilterMenuContent';
 import Menu from './Menu';
 import ToolbarMenuButton from './ToolbarMenuButton';
-import styles from './FilterMenu.css';
+import styles from './FilterMenu.module.css';
 
 interface FilterMenuProps {
   className?: string;

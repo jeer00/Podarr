@@ -1,24 +1,25 @@
 import React from 'react';
-import { useSelector } from 'react-redux';
-import AppState from 'App/State/AppState';
 import Alert from 'Components/Alert';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import InlineMarkdown from 'Components/Markdown/InlineMarkdown';
 import PageContent from 'Components/Page/PageContent';
 import PageContentBody from 'Components/Page/PageContentBody';
+import PageHeading from 'Components/Page/PageHeading';
+import { OverflowDivider } from 'Components/Page/Toolbar/Overflow';
 import PageToolbar from 'Components/Page/Toolbar/PageToolbar';
-import PageToolbarButton from 'Components/Page/Toolbar/PageToolbarButton';
-import PageToolbarSection from 'Components/Page/Toolbar/PageToolbarSection';
 import PageToolbarSeparator from 'Components/Page/Toolbar/PageToolbarSeparator';
+import ToolbarItem from 'Components/Page/Toolbar/ToolbarItem';
 import Column from 'Components/Table/Column';
 import Table from 'Components/Table/Table';
 import TableBody from 'Components/Table/TableBody';
 import { icons, kinds } from 'Helpers/Props';
+import { useSystemStatusData } from 'System/Status/useSystemStatus';
 import LogFile from 'typings/LogFile';
 import combinePath from 'Utilities/String/combinePath';
 import translate from 'Utilities/String/translate';
 import LogFilesTableRow from './LogFilesTableRow';
 import LogsNavMenu from './LogsNavMenu';
+import styles from './LogFiles.module.css';
 
 const columns: Column[] = [
   {
@@ -42,7 +43,7 @@ type LogFileType = 'app' | 'update';
 
 interface LogFilesProps {
   isFetching: boolean;
-  items: LogFile[];
+  items: ReadonlyArray<LogFile>;
   isDeleteFilesExecuting: boolean;
   type: LogFileType;
   onRefreshPress: () => void;
@@ -58,9 +59,7 @@ function LogFiles({
   onDeleteFilesPress,
   ...otherProps
 }: LogFilesProps) {
-  const { appData, isWindows } = useSelector(
-    (state: AppState) => state.system.status.item
-  );
+  const { appData, isWindows } = useSystemStatusData();
 
   const currentLogView =
     type === 'update' ? translate('UpdaterLogFiles') : translate('LogFiles');
@@ -72,29 +71,42 @@ function LogFiles({
   return (
     <PageContent title={translate('LogFiles')}>
       <PageToolbar>
-        <PageToolbarSection>
+        <ToolbarItem id="logs-nav" pinned={true}>
           <LogsNavMenu current={currentLogView} />
+        </ToolbarItem>
 
+        <OverflowDivider groupId="left">
           <PageToolbarSeparator />
+        </OverflowDivider>
 
-          <PageToolbarButton
-            label={translate('Refresh')}
-            iconName={icons.REFRESH}
-            spinningName={icons.REFRESH}
-            isSpinning={isFetching}
-            onPress={onRefreshPress}
-          />
+        <ToolbarItem
+          id="refresh"
+          priority={1}
+          groupId="left"
+          label={translate('Refresh')}
+          iconName={icons.REFRESH}
+          spinningName={icons.REFRESH}
+          isSpinning={isFetching}
+          onPress={onRefreshPress}
+        />
 
-          <PageToolbarButton
-            label={translate('Clear')}
-            iconName={icons.CLEAR}
-            isSpinning={isDeleteFilesExecuting}
-            onPress={onDeleteFilesPress}
-          />
-        </PageToolbarSection>
+        <ToolbarItem
+          id="clear"
+          priority={1}
+          groupId="left"
+          label={translate('Clear')}
+          iconName={icons.CLEAR}
+          isSpinning={isDeleteFilesExecuting}
+          onPress={onDeleteFilesPress}
+        />
       </PageToolbar>
       <PageContentBody>
-        <Alert>
+        <PageHeading
+          scope={translate('System')}
+          title={translate('LogFiles')}
+        />
+
+        <Alert className={styles.location}>
           <div>
             {translate('LogFilesLocation', {
               location,

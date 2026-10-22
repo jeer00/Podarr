@@ -1,8 +1,10 @@
+using System.Text.Json.Serialization;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Languages;
 using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.Tv;
 using Sonarr.Http.REST;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace Sonarr.Api.V5.Series;
 
@@ -20,11 +22,16 @@ public class SeriesResource : RestResource
     public string? Network { get; set; }
     public string? AirTime { get; set; }
     public List<MediaCover>? Images { get; set; }
+    public Language? Language { get; set; }
     public Language? OriginalLanguage { get; set; }
     public string? RemotePoster { get; set; }
-    public List<SeasonResource> Seasons { get; set; } = new();
+    public string? SeasonType { get; set; }
+    public List<SeasonResource> Seasons { get; set; } = [];
+    public List<SeasonTypeResource> SeasonTypes { get; set; } = [];
+    public List<SeriesTranslationResource> Translations { get; set; } = [];
     public int Year { get; set; }
     public string? Path { get; set; }
+    public string? PendingPath { get; set; }
     public int QualityProfileId { get; set; }
     public bool SeasonFolder { get; set; }
     public bool Monitored { get; set; }
@@ -35,22 +42,31 @@ public class SeriesResource : RestResource
     public int TvRageId { get; set; }
     public int TvMazeId { get; set; }
     public int TmdbId { get; set; }
+    public HashSet<int>? MalIds { get; set; }
+    public HashSet<int>? AniListIds { get; set; }
     public DateTime? FirstAired { get; set; }
     public DateTime? LastAired { get; set; }
     public SeriesTypes SeriesType { get; set; }
+    public string? OriginalTitle { get; set; }
     public string? CleanTitle { get; set; }
+    public string? CleanOriginalTitle { get; set; }
     public string? ImdbId { get; set; }
     public string? TitleSlug { get; set; }
     public string? RootFolderPath { get; set; }
     public string? Folder { get; set; }
+    public List<SeriesFolderResource> Folders { get; set; } = [];
     public string? Certification { get; set; }
     public List<string>? Genres { get; set; }
+    public string? OriginalCountry { get; set; }
     public HashSet<int>? Tags { get; set; }
     public DateTime Added { get; set; }
     public AddSeriesOptions? AddOptions { get; set; }
     public Ratings? Ratings { get; set; }
     public SeriesStatisticsResource? Statistics { get; set; }
     public bool? EpisodesChanged { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [SwaggerIgnore]
+    public bool? IsExcluded { get; set; }
 }
 
 public static class SeriesResourceMapper
@@ -67,10 +83,16 @@ public static class SeriesResourceMapper
             Network = model.Network,
             AirTime = model.AirTime,
             Images = model.Images.JsonClone(),
+            Language = model.Language ?? Language.English,
+            SeasonType = model.SeasonType,
             Seasons = model.Seasons.ToResource(includeSeasonImages),
+            SeasonTypes = model.SeasonTypes.ToResource(),
+            Translations = model.Translations.ToResource(),
             Year = model.Year,
+            OriginalCountry = model.OriginalCountry,
             OriginalLanguage = model.OriginalLanguage,
             Path = model.Path,
+            PendingPath = model.PendingPath,
             QualityProfileId = model.QualityProfileId,
             SeasonFolder = model.SeasonFolder,
             Monitored = model.Monitored,
@@ -81,10 +103,14 @@ public static class SeriesResourceMapper
             TvRageId = model.TvRageId,
             TvMazeId = model.TvMazeId,
             TmdbId = model.TmdbId,
+            MalIds = model.MalIds,
+            AniListIds = model.AniListIds,
             FirstAired = model.FirstAired,
             LastAired = model.LastAired,
             SeriesType = model.SeriesType,
+            OriginalTitle = model.OriginalTitle,
             CleanTitle = model.CleanTitle,
+            CleanOriginalTitle = model.CleanOriginalTitle,
             ImdbId = model.ImdbId,
             TitleSlug = model.TitleSlug,
             Certification = model.Certification,
@@ -108,7 +134,9 @@ public static class SeriesResourceMapper
             Network = resource.Network,
             AirTime = resource.AirTime,
             Images = resource.Images,
-            Seasons = resource.Seasons?.ToModel() ?? new List<Season>(),
+            Language = resource.Language,
+            SeasonType = resource.SeasonType,
+            Seasons = resource.Seasons?.ToModel() ?? [],
             Year = resource.Year,
             OriginalLanguage = resource.OriginalLanguage,
             Path = resource.Path,
@@ -122,9 +150,13 @@ public static class SeriesResourceMapper
             TvRageId = resource.TvRageId,
             TvMazeId = resource.TvMazeId,
             TmdbId = resource.TmdbId,
+            MalIds = resource.MalIds,
+            AniListIds = resource.AniListIds,
             FirstAired = resource.FirstAired,
             SeriesType = resource.SeriesType,
+            OriginalTitle = resource.OriginalTitle,
             CleanTitle = resource.CleanTitle,
+            CleanOriginalTitle = resource.CleanOriginalTitle,
             ImdbId = resource.ImdbId,
             TitleSlug = resource.TitleSlug,
             RootFolderPath = resource.RootFolderPath,

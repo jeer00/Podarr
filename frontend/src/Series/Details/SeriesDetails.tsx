@@ -1,62 +1,53 @@
-import moment from 'moment';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import TextTruncate from 'react-text-truncate';
-import { createSelector } from 'reselect';
-import AppState from 'App/State/AppState';
-import * as commandNames from 'Commands/commandNames';
+import classNames from 'classnames';
+import moment from 'moment-timezone';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import CommandNames from 'Commands/CommandNames';
+import { useCommands, useExecuteCommand } from 'Commands/useCommands';
 import Alert from 'Components/Alert';
 import HeartRating from 'Components/HeartRating';
 import Icon from 'Components/Icon';
 import Label from 'Components/Label';
 import IconButton from 'Components/Link/IconButton';
+import Link from 'Components/Link/Link';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import MetadataAttribution from 'Components/MetadataAttribution';
-import MonitorToggleButton from 'Components/MonitorToggleButton';
 import PageContent from 'Components/Page/PageContent';
 import PageContentBody from 'Components/Page/PageContentBody';
+import { OverflowDivider } from 'Components/Page/Toolbar/Overflow';
 import PageToolbar from 'Components/Page/Toolbar/PageToolbar';
-import PageToolbarButton from 'Components/Page/Toolbar/PageToolbarButton';
-import PageToolbarSection from 'Components/Page/Toolbar/PageToolbarSection';
 import PageToolbarSeparator from 'Components/Page/Toolbar/PageToolbarSeparator';
+import PageToolbarSpacer from 'Components/Page/Toolbar/PageToolbarSpacer';
+import ToolbarItem from 'Components/Page/Toolbar/ToolbarItem';
 import Popover from 'Components/Tooltip/Popover';
 import Tooltip from 'Components/Tooltip/Tooltip';
-import useMeasure from 'Helpers/Hooks/useMeasure';
+import useEpisodes from 'Episode/useEpisodes';
+import useEpisodeFiles from 'EpisodeFile/useEpisodeFiles';
 import usePrevious from 'Helpers/Hooks/usePrevious';
-import {
-  align,
-  icons,
-  kinds,
-  sizes,
-  sortDirections,
-  tooltipPositions,
-} from 'Helpers/Props';
+import { icons, kinds, sizes, tooltipPositions } from 'Helpers/Props';
 import InteractiveImportModal from 'InteractiveImport/InteractiveImportModal';
+import { manageEpisodesOptionsStore } from 'InteractiveImport/interactiveImportOptionsStore';
+import useCountryName from 'Internationalization/useCountryName';
 import OrganizePreviewModal from 'Organize/OrganizePreviewModal';
 import DeleteSeriesModal from 'Series/Delete/DeleteSeriesModal';
 import EditSeriesModal from 'Series/Edit/EditSeriesModal';
 import SeriesHistoryModal from 'Series/History/SeriesHistoryModal';
 import MonitoringOptionsModal from 'Series/MonitoringOptions/MonitoringOptionsModal';
-import { Image, Statistics } from 'Series/Series';
+import { Image, SeriesStatus, Statistics } from 'Series/Series';
 import SeriesGenres from 'Series/SeriesGenres';
 import SeriesPoster from 'Series/SeriesPoster';
 import { getSeriesStatusDetails } from 'Series/SeriesStatus';
-import useSeries from 'Series/useSeries';
+import useSeries, {
+  useSingleSeries,
+  useToggleSeriesMonitored,
+} from 'Series/useSeries';
 import QualityProfileName from 'Settings/Profiles/Quality/QualityProfileName';
-import { executeCommand } from 'Store/Actions/commandActions';
-import { clearEpisodes, fetchEpisodes } from 'Store/Actions/episodeActions';
-import {
-  clearEpisodeFiles,
-  fetchEpisodeFiles,
-} from 'Store/Actions/episodeFileActions';
-import {
-  clearQueueDetails,
-  fetchQueueDetails,
-} from 'Store/Actions/queueActions';
-import { toggleSeriesMonitored } from 'Store/Actions/seriesActions';
-import createAllSeriesSelector from 'Store/Selectors/createAllSeriesSelector';
-import createCommandsSelector from 'Store/Selectors/createCommandsSelector';
-import fonts from 'Styles/Variables/fonts';
 import sortByProp from 'Utilities/Array/sortByProp';
 import { findCommand, isCommandExecuting } from 'Utilities/Command';
 import formatBytes from 'Utilities/Number/formatBytes';
@@ -66,64 +57,36 @@ import {
 } from 'Utilities/pagePopulator';
 import filterAlternateTitles from 'Utilities/Series/filterAlternateTitles';
 import translate from 'Utilities/String/translate';
-import selectAll from 'Utilities/Table/selectAll';
 import toggleSelected from 'Utilities/Table/toggleSelected';
 import SeriesAlternateTitles from './SeriesAlternateTitles';
 import SeriesDetailsLinks from './SeriesDetailsLinks';
+import SeriesDetailsPath from './SeriesDetailsPath';
+import SeriesDetailsProvider from './SeriesDetailsProvider';
 import SeriesDetailsSeason from './SeriesDetailsSeason';
 import SeriesProgressLabel from './SeriesProgressLabel';
 import SeriesTags from './SeriesTags';
-import styles from './SeriesDetails.css';
-
-const defaultFontSize = parseInt(fonts.defaultFontSize);
-const lineHeight = parseFloat(fonts.lineHeight);
+import styles from './SeriesDetails.module.css';
 
 function getFanartUrl(images: Image[]) {
   return images.find((image) => image.coverType === 'fanart')?.url;
 }
 
-function getDateYear(date: string | undefined) {
-  const dateDate = moment.utc(date);
-
-  return dateDate.format('YYYY');
+function getDateYear(date: string) {
+  return moment.utc(date).format('YYYY');
 }
 
-function createEpisodesSelector() {
-  return createSelector(
-    (state: AppState) => state.episodes,
-    (episodes) => {
-      const { items, isFetching, isPopulated, error } = episodes;
+function getRunningYears(
+  status: SeriesStatus,
+  year: number,
+  lastAired: string | undefined
+) {
+  if (year === 0) {
+    return null;
+  }
 
-      const hasEpisodes = !!items.length;
-      const hasMonitoredEpisodes = items.some((e) => e.monitored);
-
-      return {
-        isEpisodesFetching: isFetching,
-        isEpisodesPopulated: isPopulated,
-        episodesError: error,
-        hasEpisodes,
-        hasMonitoredEpisodes,
-      };
-    }
-  );
-}
-
-function createEpisodeFilesSelector() {
-  return createSelector(
-    (state: AppState) => state.episodeFiles,
-    (episodeFiles) => {
-      const { items, isFetching, isPopulated, error } = episodeFiles;
-
-      const hasEpisodeFiles = !!items.length;
-
-      return {
-        isEpisodeFilesFetching: isFetching,
-        isEpisodeFilesPopulated: isPopulated,
-        episodeFilesError: error,
-        hasEpisodeFiles,
-      };
-    }
-  );
+  return status === 'ended' && lastAired
+    ? `${year}-${getDateYear(lastAired)}`
+    : `${year}-`;
 }
 
 interface ExpandedState {
@@ -137,30 +100,43 @@ interface SeriesDetailsProps {
 }
 
 function SeriesDetails({ seriesId }: SeriesDetailsProps) {
-  const dispatch = useDispatch();
+  const executeCommand = useExecuteCommand();
 
-  const series = useSeries(seriesId);
-  const allSeries = useSelector(createAllSeriesSelector());
+  const series = useSingleSeries(seriesId);
+  const { toggleSeriesMonitored, isTogglingSeriesMonitored } =
+    useToggleSeriesMonitored(seriesId);
+  const { data: allSeries } = useSeries();
+
+  const monitored = series?.monitored ?? false;
 
   const {
-    isEpisodesFetching,
-    isEpisodesPopulated,
-    episodesError,
-    hasEpisodes,
-    hasMonitoredEpisodes,
-  } = useSelector(createEpisodesSelector());
+    isFetching: isEpisodesFetching,
+    isFetched: isEpisodesFetched,
+    error: episodesError,
+    data,
+    refetch: refetchEpisodes,
+  } = useEpisodes({ seriesId });
+
+  const { hasEpisodes, hasMonitoredEpisodes } = useMemo(() => {
+    return {
+      hasEpisodes: data.length > 0,
+      hasMonitoredEpisodes: data.some((e) => e.monitored),
+    };
+  }, [data]);
+
   const {
-    isEpisodeFilesFetching,
-    isEpisodeFilesPopulated,
-    episodeFilesError,
+    isFetching: isEpisodeFilesFetching,
+    isFetched: isEpisodeFilesFetched,
+    error: episodeFilesError,
     hasEpisodeFiles,
-  } = useSelector(createEpisodeFilesSelector());
+    refetch: refetchEpisodeFiles,
+  } = useEpisodeFiles({ seriesId });
 
-  const commands = useSelector(createCommandsSelector());
+  const { data: commands } = useCommands();
 
   const { isRefreshing, isRenaming, isSearching } = useMemo(() => {
     const seriesRefreshingCommand = findCommand(commands, {
-      name: commandNames.REFRESH_SERIES,
+      name: CommandNames.RefreshSeries,
     });
 
     const isSeriesRefreshingCommandExecuting = isCommandExecuting(
@@ -169,33 +145,39 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
 
     const allSeriesRefreshing =
       isSeriesRefreshingCommandExecuting &&
-      !seriesRefreshingCommand?.body.seriesIds?.length;
+      seriesRefreshingCommand &&
+      (!('seriesIds' in seriesRefreshingCommand.body) ||
+        seriesRefreshingCommand.body.seriesIds.length === 0);
 
     const isSeriesRefreshing =
       isSeriesRefreshingCommandExecuting &&
-      seriesRefreshingCommand?.body.seriesIds?.includes(seriesId);
+      seriesRefreshingCommand &&
+      'seriesIds' in seriesRefreshingCommand.body &&
+      seriesRefreshingCommand.body.seriesIds.includes(seriesId);
 
     const isSearchingExecuting = isCommandExecuting(
       findCommand(commands, {
-        name: commandNames.SERIES_SEARCH,
+        name: CommandNames.SeriesSearch,
         seriesId,
       })
     );
 
     const isRenamingFiles = isCommandExecuting(
       findCommand(commands, {
-        name: commandNames.RENAME_FILES,
+        name: CommandNames.RenameFiles,
         seriesId,
       })
     );
 
     const isRenamingSeriesCommand = findCommand(commands, {
-      name: commandNames.RENAME_SERIES,
+      name: CommandNames.RenameSeries,
     });
 
     const isRenamingSeries =
       isCommandExecuting(isRenamingSeriesCommand) &&
-      isRenamingSeriesCommand?.body?.seriesIds?.includes(seriesId);
+      isRenamingSeriesCommand &&
+      'seriesIds' in isRenamingSeriesCommand.body &&
+      isRenamingSeriesCommand.body.seriesIds.includes(seriesId);
 
     return {
       isRefreshing: isSeriesRefreshing || allSeriesRefreshing,
@@ -237,6 +219,11 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
   const [isManageEpisodesOpen, setIsManageEpisodesOpen] = useState(false);
   const [isEditSeriesModalOpen, setIsEditSeriesModalOpen] = useState(false);
   const [isDeleteSeriesModalOpen, setIsDeleteSeriesModalOpen] = useState(false);
+  const [isOverviewExpanded, setIsOverviewExpanded] = useState(false);
+
+  const handleToggleOverview = useCallback(() => {
+    setIsOverviewExpanded((value) => !value);
+  }, []);
   const [isSeriesHistoryModalOpen, setIsSeriesHistoryModalOpen] =
     useState(false);
   const [isMonitorOptionsModalOpen, setIsMonitorOptionsModalOpen] =
@@ -246,7 +233,6 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
     allCollapsed: false,
     seasons: {},
   });
-  const [overviewRef, { height: overviewHeight }] = useMeasure();
   const wasRefreshing = usePrevious(isRefreshing);
   const wasRenaming = usePrevious(isRenaming);
 
@@ -312,15 +298,19 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
   }, []);
 
   const handleExpandAllPress = useCallback(() => {
-    const updated = selectAll(
-      expandedState.seasons,
-      !expandedState.allExpanded
-    );
+    const expandAll = !expandedState.allExpanded;
+
+    const newSeasons = Object.keys(expandedState.seasons).reduce<
+      Record<number | string, boolean>
+    >((acc, item) => {
+      acc[item] = expandAll;
+      return acc;
+    }, {});
 
     setExpandedState({
-      allExpanded: updated.allSelected,
-      allCollapsed: updated.allUnselected,
-      seasons: updated.selectedState,
+      allExpanded: expandAll,
+      allCollapsed: !expandAll,
+      seasons: newSeasons,
     });
   }, [expandedState]);
 
@@ -354,41 +344,32 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
     []
   );
 
-  const handleMonitorTogglePress = useCallback(
-    (value: boolean) => {
-      dispatch(
-        toggleSeriesMonitored({
-          seriesId,
-          monitored: value,
-        })
-      );
-    },
-    [seriesId, dispatch]
-  );
+  const handleMonitorToggle = useCallback(() => {
+    toggleSeriesMonitored({
+      monitored: !monitored,
+    });
+  }, [toggleSeriesMonitored, monitored]);
 
   const handleRefreshPress = useCallback(() => {
-    dispatch(
-      executeCommand({
-        name: commandNames.REFRESH_SERIES,
-        seriesId,
-      })
-    );
-  }, [seriesId, dispatch]);
+    executeCommand({
+      name: CommandNames.RefreshSeries,
+      seriesId,
+    });
+  }, [seriesId, executeCommand]);
 
   const handleSearchPress = useCallback(() => {
-    dispatch(
-      executeCommand({
-        name: commandNames.SERIES_SEARCH,
-        seriesId,
-      })
-    );
-  }, [seriesId, dispatch]);
+    executeCommand({
+      name: CommandNames.SeriesSearch,
+      seriesId,
+    });
+  }, [seriesId, executeCommand]);
 
   const populate = useCallback(() => {
-    dispatch(fetchEpisodes({ seriesId }));
-    dispatch(fetchEpisodeFiles({ seriesId }));
-    dispatch(fetchQueueDetails({ seriesId }));
-  }, [seriesId, dispatch]);
+    refetchEpisodes();
+    refetchEpisodeFiles();
+  }, [refetchEpisodes, refetchEpisodeFiles]);
+
+  const originalCountryName = useCountryName(series?.originalCountry);
 
   useEffect(() => {
     populate();
@@ -399,17 +380,45 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
 
     return () => {
       unregisterPagePopulator(populate);
-      dispatch(clearEpisodes());
-      dispatch(clearEpisodeFiles());
-      dispatch(clearQueueDetails());
     };
-  }, [populate, dispatch]);
+  }, [populate]);
 
   useEffect(() => {
     if ((!isRefreshing && wasRefreshing) || (!isRenaming && wasRenaming)) {
       populate();
     }
   }, [isRefreshing, wasRefreshing, isRenaming, wasRenaming, populate]);
+
+  const overviewRef = useRef<HTMLParagraphElement>(null);
+  const [isOverviewClamped, setIsOverviewClamped] = useState(false);
+
+  useLayoutEffect(() => {
+    const element = overviewRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const compute = () =>
+      setIsOverviewClamped(
+        !isOverviewExpanded && element.scrollHeight > element.clientHeight
+      );
+
+    compute();
+
+    const observer = new ResizeObserver(compute);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [series?.overview, isOverviewExpanded]);
+
+  let expandIcon = icons.EXPAND_INDETERMINATE;
+
+  if (expandedState.allExpanded) {
+    expandIcon = icons.COLLAPSE;
+  } else if (expandedState.allCollapsed) {
+    expandIcon = icons.EXPAND;
+  }
 
   if (!series) {
     return null;
@@ -424,31 +433,28 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
     runtime,
     ratings,
     path,
+    pendingPath,
     statistics = {} as Statistics,
     qualityProfileId,
-    monitored,
+    language,
     status,
     network,
     originalLanguage,
     overview,
     images,
     seasons,
+    seasonType,
+    seasonTypes,
     genres,
     tags,
     year,
-    isSaving = false,
+    lastAired,
   } = series;
 
-  const {
-    episodeCount = 0,
-    episodeFileCount = 0,
-    sizeOnDisk = 0,
-    lastAired,
-  } = statistics;
+  const { episodeCount = 0, episodeFileCount = 0, sizeOnDisk = 0 } = statistics;
 
   const statusDetails = getSeriesStatusDetails(status);
-  const runningYears =
-    status === 'ended' ? `${year}-${getDateYear(lastAired)}` : `${year}-`;
+  const runningYears = getRunningYears(status, year, lastAired);
 
   let episodeFilesCountMessage = translate('SeriesDetailsNoEpisodeFiles');
 
@@ -460,23 +466,18 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
     });
   }
 
-  let expandIcon = icons.EXPAND_INDETERMINATE;
-
-  if (expandedState.allExpanded) {
-    expandIcon = icons.COLLAPSE;
-  } else if (expandedState.allCollapsed) {
-    expandIcon = icons.EXPAND;
-  }
-
   const fanartUrl = getFanartUrl(images);
   const isFetching = isEpisodesFetching || isEpisodeFilesFetching;
-  const isPopulated = isEpisodesPopulated && isEpisodeFilesPopulated;
+  const isPopulated = isEpisodesFetched && isEpisodeFilesFetched;
 
   return (
-    <PageContent title={title}>
-      <PageToolbar>
-        <PageToolbarSection>
-          <PageToolbarButton
+    <SeriesDetailsProvider seriesId={seriesId}>
+      <PageContent title={title}>
+        <PageToolbar>
+          <ToolbarItem
+            id="refresh"
+            priority={1}
+            groupId="left-a"
             label={translate('RefreshAndScan')}
             iconName={icons.REFRESH}
             spinningName={icons.REFRESH}
@@ -485,7 +486,10 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
             onPress={handleRefreshPress}
           />
 
-          <PageToolbarButton
+          <ToolbarItem
+            id="search-monitored"
+            priority={1}
+            groupId="left-a"
             label={translate('SearchMonitored')}
             iconName={icons.SEARCH}
             isDisabled={!monitored || !hasMonitoredEpisodes || !hasEpisodes}
@@ -498,51 +502,76 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
             onPress={handleSearchPress}
           />
 
-          <PageToolbarSeparator />
+          <OverflowDivider groupId="left-a">
+            <PageToolbarSeparator />
+          </OverflowDivider>
 
-          <PageToolbarButton
+          <ToolbarItem
+            id="preview-rename"
+            priority={1}
+            groupId="left-b"
             label={translate('PreviewRename')}
             iconName={icons.ORGANIZE}
             isDisabled={!hasEpisodeFiles}
             onPress={handleOrganizePress}
           />
 
-          <PageToolbarButton
+          <ToolbarItem
+            id="manage-episodes"
+            priority={1}
+            groupId="left-b"
             label={translate('ManageEpisodes')}
             iconName={icons.EPISODE_FILE}
             onPress={handleManageEpisodesPress}
           />
 
-          <PageToolbarButton
+          <ToolbarItem
+            id="history"
+            priority={1}
+            groupId="left-b"
             label={translate('History')}
             iconName={icons.HISTORY}
             isDisabled={!hasEpisodes}
             onPress={handleSeriesHistoryPress}
           />
 
-          <PageToolbarSeparator />
+          <OverflowDivider groupId="left-b">
+            <PageToolbarSeparator />
+          </OverflowDivider>
 
-          <PageToolbarButton
-            label={translate('SeriesMonitoring')}
+          <ToolbarItem
+            id="episode-monitoring"
+            priority={1}
+            groupId="left-c"
+            label={translate('EpisodeMonitoring')}
             iconName={icons.MONITORED}
             onPress={handleMonitorOptionsPress}
           />
 
-          <PageToolbarButton
+          <ToolbarItem
+            id="edit"
+            priority={1}
+            groupId="left-c"
             label={translate('Edit')}
             iconName={icons.EDIT}
             onPress={handleEditSeriesPress}
           />
 
-          <PageToolbarButton
+          <ToolbarItem
+            id="delete"
+            priority={1}
+            groupId="left-c"
             label={translate('Delete')}
             iconName={icons.DELETE}
             onPress={handleDeleteSeriesPress}
           />
-        </PageToolbarSection>
 
-        <PageToolbarSection alignContent={align.RIGHT}>
-          <PageToolbarButton
+          <PageToolbarSpacer />
+
+          <ToolbarItem
+            id="expand-all"
+            priority={2}
+            groupId="right"
             label={
               expandedState.allExpanded
                 ? translate('CollapseAll')
@@ -551,90 +580,85 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
             iconName={expandIcon}
             onPress={handleExpandAllPress}
           />
-        </PageToolbarSection>
-      </PageToolbar>
+        </PageToolbar>
 
-      <PageContentBody innerClassName={styles.innerContentBody}>
-        <div className={styles.header}>
-          <div
-            className={styles.backdrop}
-            style={
-              fanartUrl ? { backgroundImage: `url(${fanartUrl})` } : undefined
-            }
-          >
-            <div className={styles.backdropOverlay} />
-          </div>
+        <PageContentBody innerClassName={styles.innerContentBody}>
+          <div className={styles.header}>
+            <div
+              className={styles.backdrop}
+              style={
+                fanartUrl ? { backgroundImage: `url(${fanartUrl})` } : undefined
+              }
+            >
+              <div className={styles.backdropOverlay} />
+            </div>
 
-          <div className={styles.headerContent}>
-            <SeriesPoster
-              className={styles.poster}
-              images={images}
-              size={500}
-              lazy={false}
-            />
+            <div className={styles.headerContent}>
+              <SeriesPoster
+                className={styles.poster}
+                images={images}
+                size={500}
+                lazy={false}
+                title={title}
+              />
 
-            <div className={styles.info}>
-              <div className={styles.titleRow}>
-                <div className={styles.titleContainer}>
-                  <div className={styles.toggleMonitoredContainer}>
-                    <MonitorToggleButton
-                      className={styles.monitorToggleButton}
-                      monitored={monitored}
-                      isSaving={isSaving}
-                      size={40}
-                      onPress={handleMonitorTogglePress}
-                    />
+              <div className={styles.info}>
+                <div className={styles.titleRow}>
+                  <div className={styles.titleContainer}>
+                    <div className={styles.title}>{title}</div>
+
+                    {alternateTitles.length ? (
+                      <div className={styles.alternateTitlesIconContainer}>
+                        <Popover
+                          anchor={
+                            <Icon name={icons.ALTERNATE_TITLES} size={18} />
+                          }
+                          title={translate('AlternateTitles')}
+                          body={
+                            <SeriesAlternateTitles
+                              alternateTitles={alternateTitles}
+                            />
+                          }
+                          position={tooltipPositions.BOTTOM}
+                        />
+                      </div>
+                    ) : null}
                   </div>
 
-                  <div className={styles.title}>{title}</div>
-
-                  {alternateTitles.length ? (
-                    <div className={styles.alternateTitlesIconContainer}>
-                      <Popover
-                        anchor={
-                          <Icon name={icons.ALTERNATE_TITLES} size={20} />
-                        }
-                        title={translate('AlternateTitles')}
-                        body={
-                          <SeriesAlternateTitles
-                            alternateTitles={alternateTitles}
-                          />
-                        }
-                        position={tooltipPositions.BOTTOM}
+                  <div className={styles.seriesNavigationButtons}>
+                    {previousSeries ? (
+                      <IconButton
+                        className={styles.seriesNavigationButton}
+                        name={icons.ARROW_LEFT}
+                        size={24}
+                        title={translate('SeriesDetailsGoTo', {
+                          title: previousSeries.title,
+                        })}
+                        aria-label={translate('SeriesDetailsGoTo', {
+                          title: previousSeries.title,
+                        })}
+                        to={`/series/${previousSeries.titleSlug}`}
                       />
-                    </div>
-                  ) : null}
+                    ) : null}
+
+                    {nextSeries ? (
+                      <IconButton
+                        className={styles.seriesNavigationButton}
+                        name={icons.ARROW_RIGHT}
+                        size={24}
+                        title={translate('SeriesDetailsGoTo', {
+                          title: nextSeries.title,
+                        })}
+                        aria-label={translate('SeriesDetailsGoTo', {
+                          title: nextSeries.title,
+                        })}
+                        to={`/series/${nextSeries.titleSlug}`}
+                      />
+                    ) : null}
+                  </div>
                 </div>
 
-                <div className={styles.seriesNavigationButtons}>
-                  {previousSeries ? (
-                    <IconButton
-                      className={styles.seriesNavigationButton}
-                      name={icons.ARROW_LEFT}
-                      size={30}
-                      title={translate('SeriesDetailsGoTo', {
-                        title: previousSeries.title,
-                      })}
-                      to={`/series/${previousSeries.titleSlug}`}
-                    />
-                  ) : null}
-
-                  {nextSeries ? (
-                    <IconButton
-                      className={styles.seriesNavigationButton}
-                      name={icons.ARROW_RIGHT}
-                      size={30}
-                      title={translate('SeriesDetailsGoTo', {
-                        title: nextSeries.title,
-                      })}
-                      to={`/series/${nextSeries.titleSlug}`}
-                    />
-                  ) : null}
-                </div>
-              </div>
-
-              <div className={styles.details}>
-                <div>
+                <div className={styles.details}>
                   {runtime ? (
                     <span className={styles.runtime}>
                       {translate('SeriesDetailsRuntime', { runtime })}
@@ -645,261 +669,329 @@ function SeriesDetails({ seriesId }: SeriesDetailsProps) {
                     <HeartRating
                       rating={ratings.value}
                       votes={ratings.votes}
-                      iconSize={20}
+                      iconSize={14}
                     />
                   ) : null}
 
-                  <SeriesGenres className={styles.genres} genres={genres} />
+                  {genres.length ? (
+                    <SeriesGenres className={styles.genres} genres={genres} />
+                  ) : null}
 
-                  <span>{runningYears}</span>
+                  {runningYears ? <span>{runningYears}</span> : null}
+                </div>
+
+                <div className={styles.detailsChips}>
+                  <div className={styles.chipsRow}>
+                    <Link
+                      className={styles.monitoredToggle}
+                      isDisabled={isTogglingSeriesMonitored}
+                      aria-pressed={monitored}
+                      onPress={handleMonitorToggle}
+                    >
+                      <Label
+                        className={styles.detailsLabel}
+                        size={sizes.LARGE}
+                        icon={icons.MONITORED}
+                        iconFilled={monitored}
+                        interactive={true}
+                      >
+                        <span className={styles.monitoredText}>
+                          {monitored
+                            ? translate('Monitored')
+                            : translate('Unmonitored')}
+                        </span>
+                      </Label>
+                    </Link>
+
+                    <Tooltip
+                      anchor={
+                        <Label
+                          className={styles.detailsLabel}
+                          size={sizes.LARGE}
+                          icon={icons.EXTERNAL_LINK}
+                          interactive={true}
+                        >
+                          <span className={styles.links}>
+                            {translate('Links')}
+                          </span>
+                        </Label>
+                      }
+                      contentRole="dialog"
+                      tooltip={
+                        <SeriesDetailsLinks
+                          tvdbId={tvdbId}
+                          tvMazeId={tvMazeId}
+                          imdbId={imdbId}
+                          tmdbId={tmdbId}
+                        />
+                      }
+                      kind={kinds.DEFAULT}
+                      position={tooltipPositions.BOTTOM}
+                    />
+
+                    {tags.length ? (
+                      <Tooltip
+                        anchor={
+                          <Label
+                            className={styles.detailsLabel}
+                            size={sizes.LARGE}
+                            icon={icons.TAGS}
+                            interactive={true}
+                          >
+                            <span className={styles.tags}>
+                              {translate('Tags')}
+                            </span>
+                          </Label>
+                        }
+                        tooltip={<SeriesTags seriesId={seriesId} />}
+                        kind={kinds.DEFAULT}
+                        position={tooltipPositions.BOTTOM}
+                      />
+                    ) : null}
+                  </div>
+
+                  <div className={styles.chipsRow}>
+                    <SeriesProgressLabel
+                      className={styles.seriesProgressLabel}
+                      seriesId={seriesId}
+                      monitored={monitored}
+                      episodeCount={episodeCount}
+                      episodeFileCount={episodeFileCount}
+                    />
+
+                    <Tooltip
+                      accessibleLabel={translate('SizeOnDisk')}
+                      anchor={
+                        <Label
+                          className={styles.detailsLabel}
+                          size={sizes.LARGE}
+                          icon={icons.DRIVE}
+                        >
+                          <span className={styles.sizeOnDisk}>
+                            {formatBytes(sizeOnDisk)}
+                          </span>
+                        </Label>
+                      }
+                      tooltip={<span>{episodeFilesCountMessage}</span>}
+                      kind={kinds.DEFAULT}
+                      position={tooltipPositions.BOTTOM}
+                    />
+
+                    <Label
+                      className={styles.detailsLabel}
+                      title={translate('QualityProfile')}
+                      size={sizes.LARGE}
+                      icon={icons.PROFILE}
+                    >
+                      <span className={styles.qualityProfileName}>
+                        <QualityProfileName
+                          qualityProfileId={qualityProfileId}
+                        />
+                      </span>
+                    </Label>
+
+                    <Label
+                      className={styles.detailsLabel}
+                      title={translate('SeasonType')}
+                      size={sizes.LARGE}
+                      icon={icons.SEASON_TYPE}
+                    >
+                      <span className={styles.seasonTypeName}>
+                        {seasonTypes.find((s) => s.type === seasonType)?.name ??
+                          seasonType}
+                      </span>
+                    </Label>
+
+                    <Label
+                      className={styles.detailsLabel}
+                      title={translate('Language')}
+                      size={sizes.LARGE}
+                      icon={icons.LANGUAGE}
+                    >
+                      <span className={styles.languageName}>
+                        {language.name}
+                      </span>
+                    </Label>
+
+                    <Label
+                      className={styles.detailsLabel}
+                      title={statusDetails.message}
+                      size={sizes.LARGE}
+                      kind={status === 'deleted' ? kinds.INVERSE : undefined}
+                      icon={statusDetails.icon}
+                    >
+                      <span className={styles.statusName}>
+                        {statusDetails.title}
+                      </span>
+                    </Label>
+
+                    {originalLanguage?.name ? (
+                      <Label
+                        className={styles.detailsLabel}
+                        title={translate('OriginalLanguage')}
+                        size={sizes.LARGE}
+                        icon={icons.LANGUAGE}
+                      >
+                        <span className={styles.originalLanguageName}>
+                          {originalLanguage.name}
+                        </span>
+                      </Label>
+                    ) : null}
+
+                    {originalCountryName ? (
+                      <Label
+                        className={styles.detailsLabel}
+                        title={translate('OriginalCountry')}
+                        size={sizes.LARGE}
+                        icon={icons.GLOBE}
+                      >
+                        <span className={styles.originalCountry}>
+                          {originalCountryName}
+                        </span>
+                      </Label>
+                    ) : null}
+
+                    {network ? (
+                      <Label
+                        className={styles.detailsLabel}
+                        title={translate('Network')}
+                        size={sizes.LARGE}
+                        icon={icons.NETWORK}
+                      >
+                        <span className={styles.network}>{network}</span>
+                      </Label>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className={styles.heroFooter}>
+                  <SeriesDetailsPath path={path} pendingPath={pendingPath} />
+
+                  <MetadataAttribution />
                 </div>
               </div>
-
-              <div>
-                <Label className={styles.detailsLabel} size={sizes.LARGE}>
-                  <div>
-                    <Icon name={icons.FOLDER} size={17} />
-                    <span className={styles.path}>{path}</span>
-                  </div>
-                </Label>
-
-                <Tooltip
-                  anchor={
-                    <Label className={styles.detailsLabel} size={sizes.LARGE}>
-                      <div>
-                        <Icon name={icons.DRIVE} size={17} />
-
-                        <span className={styles.sizeOnDisk}>
-                          {formatBytes(sizeOnDisk)}
-                        </span>
-                      </div>
-                    </Label>
-                  }
-                  tooltip={<span>{episodeFilesCountMessage}</span>}
-                  kind={kinds.INVERSE}
-                  position={tooltipPositions.BOTTOM}
-                />
-
-                <Label
-                  className={styles.detailsLabel}
-                  title={translate('QualityProfile')}
-                  size={sizes.LARGE}
-                >
-                  <div>
-                    <Icon name={icons.PROFILE} size={17} />
-                    <span className={styles.qualityProfileName}>
-                      <QualityProfileName qualityProfileId={qualityProfileId} />
-                    </span>
-                  </div>
-                </Label>
-
-                <Label className={styles.detailsLabel} size={sizes.LARGE}>
-                  <div>
-                    <Icon
-                      name={monitored ? icons.MONITORED : icons.UNMONITORED}
-                      size={17}
-                    />
-                    <span className={styles.qualityProfileName}>
-                      {monitored
-                        ? translate('Monitored')
-                        : translate('Unmonitored')}
-                    </span>
-                  </div>
-                </Label>
-
-                <Label
-                  className={styles.detailsLabel}
-                  title={statusDetails.message}
-                  size={sizes.LARGE}
-                  kind={status === 'deleted' ? kinds.INVERSE : undefined}
-                >
-                  <div>
-                    <Icon name={statusDetails.icon} size={17} />
-                    <span className={styles.statusName}>
-                      {statusDetails.title}
-                    </span>
-                  </div>
-                </Label>
-
-                {originalLanguage?.name ? (
-                  <Label
-                    className={styles.detailsLabel}
-                    title={translate('OriginalLanguage')}
-                    size={sizes.LARGE}
-                  >
-                    <div>
-                      <Icon name={icons.LANGUAGE} size={17} />
-                      <span className={styles.originalLanguageName}>
-                        {originalLanguage.name}
-                      </span>
-                    </div>
-                  </Label>
-                ) : null}
-
-                {network ? (
-                  <Label
-                    className={styles.detailsLabel}
-                    title={translate('Network')}
-                    size={sizes.LARGE}
-                  >
-                    <div>
-                      <Icon name={icons.NETWORK} size={17} />
-                      <span className={styles.network}>{network}</span>
-                    </div>
-                  </Label>
-                ) : null}
-
-                <Tooltip
-                  anchor={
-                    <Label className={styles.detailsLabel} size={sizes.LARGE}>
-                      <div>
-                        <Icon name={icons.EXTERNAL_LINK} size={17} />
-                        <span className={styles.links}>
-                          {translate('Links')}
-                        </span>
-                      </div>
-                    </Label>
-                  }
-                  tooltip={
-                    <SeriesDetailsLinks
-                      tvdbId={tvdbId}
-                      tvMazeId={tvMazeId}
-                      imdbId={imdbId}
-                      tmdbId={tmdbId}
-                    />
-                  }
-                  kind={kinds.INVERSE}
-                  position={tooltipPositions.BOTTOM}
-                />
-
-                {tags.length ? (
-                  <Tooltip
-                    anchor={
-                      <Label className={styles.detailsLabel} size={sizes.LARGE}>
-                        <Icon name={icons.TAGS} size={17} />
-
-                        <span className={styles.tags}>{translate('Tags')}</span>
-                      </Label>
-                    }
-                    tooltip={<SeriesTags seriesId={seriesId} />}
-                    kind={kinds.INVERSE}
-                    position={tooltipPositions.BOTTOM}
-                  />
-                ) : null}
-
-                <SeriesProgressLabel
-                  className={styles.seriesProgressLabel}
-                  seriesId={seriesId}
-                  monitored={monitored}
-                  episodeCount={episodeCount}
-                  episodeFileCount={episodeFileCount}
-                />
-              </div>
-
-              <div ref={overviewRef} className={styles.overview}>
-                <TextTruncate
-                  line={
-                    Math.floor(
-                      overviewHeight / (defaultFontSize * lineHeight)
-                    ) - 1
-                  }
-                  text={overview}
-                />
-              </div>
-
-              <MetadataAttribution />
             </div>
           </div>
-        </div>
 
-        <div className={styles.contentContainer}>
-          {!isPopulated && !episodesError && !episodeFilesError ? (
-            <LoadingIndicator />
-          ) : null}
+          <div className={styles.contentContainer}>
+            {overview ? (
+              <section className={styles.overviewSection}>
+                <div className={styles.overviewFrame} aria-hidden="true">
+                  <span className={styles.overviewLabel}>
+                    {translate('Overview')}
+                  </span>
+                </div>
 
-          {!isFetching && episodesError ? (
-            <Alert kind={kinds.DANGER}>{translate('EpisodesLoadError')}</Alert>
-          ) : null}
+                <p
+                  ref={overviewRef}
+                  className={classNames(
+                    styles.overview,
+                    !isOverviewExpanded && styles.overviewClamped
+                  )}
+                >
+                  {overview}
+                </p>
 
-          {!isFetching && episodeFilesError ? (
-            <Alert kind={kinds.DANGER}>
-              {translate('EpisodeFilesLoadError')}
-            </Alert>
-          ) : null}
+                {isOverviewClamped || isOverviewExpanded ? (
+                  <Link
+                    className={styles.overviewToggle}
+                    onPress={handleToggleOverview}
+                  >
+                    {isOverviewExpanded ? translate('Less') : translate('More')}
+                  </Link>
+                ) : null}
+              </section>
+            ) : null}
 
-          {isPopulated && !!seasons.length ? (
-            <div>
-              {seasons
-                .slice(0)
-                .reverse()
-                .map((season) => {
-                  return (
-                    <SeriesDetailsSeason
-                      key={season.seasonNumber}
-                      seriesId={seriesId}
-                      {...season}
-                      isExpanded={expandedState.seasons[season.seasonNumber]}
-                      onExpandPress={handleExpandPress}
-                    />
-                  );
-                })}
-            </div>
-          ) : null}
+            {!isPopulated && !episodesError && !episodeFilesError ? (
+              <LoadingIndicator />
+            ) : null}
 
-          {isPopulated && !seasons.length ? (
-            <Alert kind={kinds.WARNING}>
-              {translate('NoEpisodeInformation')}
-            </Alert>
-          ) : null}
-        </div>
+            {!isFetching && episodesError ? (
+              <Alert kind={kinds.DANGER}>
+                {translate('EpisodesLoadError')}
+              </Alert>
+            ) : null}
 
-        <OrganizePreviewModal
-          isOpen={isOrganizeModalOpen}
-          seriesId={seriesId}
-          onModalClose={handleOrganizeModalClose}
-        />
+            {!isFetching && episodeFilesError ? (
+              <Alert kind={kinds.DANGER}>
+                {translate('EpisodeFilesLoadError')}
+              </Alert>
+            ) : null}
 
-        <InteractiveImportModal
-          isOpen={isManageEpisodesOpen}
-          seriesId={seriesId}
-          title={title}
-          folder={path}
-          initialSortKey="relativePath"
-          initialSortDirection={sortDirections.DESCENDING}
-          showSeries={false}
-          allowSeriesChange={false}
-          showDelete={true}
-          showImportMode={false}
-          modalTitle={translate('ManageEpisodes')}
-          onModalClose={handleManageEpisodesModalClose}
-        />
+            {isPopulated && !!seasons.length ? (
+              <div>
+                {seasons
+                  .slice(0)
+                  .reverse()
+                  .map((season) => {
+                    return (
+                      <SeriesDetailsSeason
+                        key={season.seasonNumber}
+                        seriesId={seriesId}
+                        {...season}
+                        isExpanded={expandedState.seasons[season.seasonNumber]}
+                        onExpandPress={handleExpandPress}
+                      />
+                    );
+                  })}
+              </div>
+            ) : null}
 
-        <SeriesHistoryModal
-          isOpen={isSeriesHistoryModalOpen}
-          seriesId={seriesId}
-          onModalClose={handleSeriesHistoryModalClose}
-        />
+            {isPopulated && !seasons.length ? (
+              <Alert kind={kinds.WARNING}>
+                {translate('NoEpisodeInformation')}
+              </Alert>
+            ) : null}
+          </div>
 
-        <EditSeriesModal
-          isOpen={isEditSeriesModalOpen}
-          seriesId={seriesId}
-          onModalClose={handleEditSeriesModalClose}
-          onDeleteSeriesPress={handleDeleteSeriesPress}
-        />
+          <OrganizePreviewModal
+            isOpen={isOrganizeModalOpen}
+            seriesId={seriesId}
+            onModalClose={handleOrganizeModalClose}
+          />
 
-        <DeleteSeriesModal
-          isOpen={isDeleteSeriesModalOpen}
-          seriesId={seriesId}
-          onModalClose={handleDeleteSeriesModalClose}
-        />
+          <InteractiveImportModal
+            isOpen={isManageEpisodesOpen}
+            seriesId={seriesId}
+            title={title}
+            folder={path}
+            optionsStore={manageEpisodesOptionsStore}
+            showSeries={false}
+            allowSeriesChange={false}
+            showDelete={true}
+            showImportMode={false}
+            modalTitle={translate('ManageEpisodes')}
+            onModalClose={handleManageEpisodesModalClose}
+          />
 
-        <MonitoringOptionsModal
-          isOpen={isMonitorOptionsModalOpen}
-          seriesId={seriesId}
-          onModalClose={handleMonitorOptionsClose}
-        />
-      </PageContentBody>
-    </PageContent>
+          <SeriesHistoryModal
+            isOpen={isSeriesHistoryModalOpen}
+            seriesId={seriesId}
+            onModalClose={handleSeriesHistoryModalClose}
+          />
+
+          <EditSeriesModal
+            isOpen={isEditSeriesModalOpen}
+            seriesId={seriesId}
+            onModalClose={handleEditSeriesModalClose}
+            onDeleteSeriesPress={handleDeleteSeriesPress}
+          />
+
+          <DeleteSeriesModal
+            isOpen={isDeleteSeriesModalOpen}
+            seriesId={seriesId}
+            onModalClose={handleDeleteSeriesModalClose}
+          />
+
+          <MonitoringOptionsModal
+            isOpen={isMonitorOptionsModalOpen}
+            seriesId={seriesId}
+            onModalClose={handleMonitorOptionsClose}
+          />
+        </PageContentBody>
+      </PageContent>
+    </SeriesDetailsProvider>
   );
 }
 

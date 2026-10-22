@@ -1,27 +1,24 @@
 import { maxBy } from 'lodash';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import AppState, {
-  CustomFilter,
-  FilterBuilderProp,
-  PropertyFilter,
-} from 'App/State/AppState';
-import FormInputGroup, {
-  ValidationMessage,
-} from 'Components/Form/FormInputGroup';
+import FormInput, { ValidationMessage } from 'Components/Form/FormInput';
 import Button from 'Components/Link/Button';
 import SpinnerErrorButton from 'Components/Link/SpinnerErrorButton';
 import ModalBody from 'Components/Modal/ModalBody';
 import ModalContent from 'Components/Modal/ModalContent';
 import ModalFooter from 'Components/Modal/ModalFooter';
 import ModalHeader from 'Components/Modal/ModalHeader';
+import {
+  CustomFilter,
+  FilterBuilderProp,
+  PropertyFilter,
+} from 'Filters/Filter';
+import { useSaveCustomFilter } from 'Filters/useCustomFilters';
 import usePrevious from 'Helpers/Hooks/usePrevious';
 import { inputTypes } from 'Helpers/Props';
-import { saveCustomFilter } from 'Store/Actions/customFilterActions';
 import { InputChanged } from 'typings/inputs';
 import translate from 'Utilities/String/translate';
 import FilterBuilderRow from './FilterBuilderRow';
-import styles from './FilterBuilderModalContent.css';
+import styles from './FilterBuilderModalContent.module.css';
 
 const NEW_FILTER: PropertyFilter = {
   key: '',
@@ -32,7 +29,7 @@ const NEW_FILTER: PropertyFilter = {
 interface FilterBuilderModalContentProps<T> {
   id: number | null;
   customFilterType: string;
-  sectionItems: T[];
+  sectionItems: ReadonlyArray<T>;
   filterBuilderProps: FilterBuilderProp<T>[];
   customFilters: CustomFilter[];
   dispatchSetFilter: (payload: { selectedFilterKey: string | number }) => void;
@@ -50,10 +47,8 @@ function FilterBuilderModalContent<T>({
   onCancelPress,
   onModalClose,
 }: FilterBuilderModalContentProps<T>) {
-  const dispatch = useDispatch();
-  const { isSaving, saveError } = useSelector(
-    (state: AppState) => state.customFilters
-  );
+  const { newCustomFilter, saveCustomFilter, isSaving, saveError } =
+    useSaveCustomFilter(id);
 
   const { initialLabel, initialFilters } = useMemo(() => {
     if (id) {
@@ -121,13 +116,15 @@ function FilterBuilderModalContent<T>({
       return;
     }
 
-    dispatch(saveCustomFilter({ id, type: customFilterType, label, filters }));
-  }, [id, customFilterType, label, filters, dispatch]);
+    saveCustomFilter({ type: customFilterType, label, filters });
+  }, [customFilterType, label, filters, saveCustomFilter]);
 
   useEffect(() => {
     if (wasSaving && !isSaving && !saveError) {
       if (id) {
         dispatchSetFilter({ selectedFilterKey: id });
+      } else if (newCustomFilter) {
+        dispatchSetFilter({ selectedFilterKey: newCustomFilter.id });
       } else {
         const last = maxBy(customFilters, 'id');
 
@@ -141,6 +138,7 @@ function FilterBuilderModalContent<T>({
   }, [
     id,
     customFilters,
+    newCustomFilter,
     isSaving,
     wasSaving,
     saveError,
@@ -157,7 +155,7 @@ function FilterBuilderModalContent<T>({
           <div className={styles.label}>{translate('Label')}</div>
 
           <div className={styles.labelInputContainer}>
-            <FormInputGroup
+            <FormInput
               name="label"
               value={label}
               type={inputTypes.TEXT}
@@ -169,7 +167,7 @@ function FilterBuilderModalContent<T>({
 
         <div className={styles.label}>{translate('Filters')}</div>
 
-        <div className={styles.rows}>
+        <div className={styles.bordered}>
           {filters.map((filter, index) => {
             return (
               <FilterBuilderRow

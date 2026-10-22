@@ -29,6 +29,7 @@ namespace NzbDrone.Core.Test.ParserTests.ParsingServiceTests
             _series = Builder<Series>.CreateNew()
                 .With(s => s.Title = "30 Stone")
                 .With(s => s.CleanTitle = "stone")
+                .With(s => s.SeasonType = SeasonType.Official)
                 .Build();
 
             _episodes = Builder<Episode>.CreateListOfSize(1)
@@ -41,9 +42,9 @@ namespace NzbDrone.Core.Test.ParserTests.ParsingServiceTests
             {
                 SeriesTitle = _series.Title,
                 SeriesTitleInfo = new SeriesTitleInfo(),
-                SeasonNumber = 1,
-                EpisodeNumbers = new[] { 1 },
-                Languages = new List<Language> { Language.English }
+                SeasonNumbers = [1],
+                EpisodeNumbers = [1],
+                Languages = [Language.English]
             };
 
             _singleEpisodeSearchCriteria = new SingleEpisodeSearchCriteria
@@ -257,7 +258,7 @@ namespace NzbDrone.Core.Test.ParserTests.ParsingServiceTests
         [Test]
         public void should_use_scene_season_number_from_xem_mapping_if_alias_matches_a_specific_season_number()
         {
-            _parsedEpisodeInfo.SeasonNumber = 1;
+            _parsedEpisodeInfo.SeasonNumbers = [1];
 
             var sceneMapping = new SceneMapping
             {
@@ -266,7 +267,7 @@ namespace NzbDrone.Core.Test.ParserTests.ParsingServiceTests
             };
 
             Mocker.GetMock<ISceneMappingService>()
-                .Setup(s => s.FindSceneMapping(_parsedEpisodeInfo.SeriesTitle, _parsedEpisodeInfo.ReleaseTitle, _parsedEpisodeInfo.SeasonNumber))
+                .Setup(s => s.FindSceneMapping(_parsedEpisodeInfo.SeriesTitle, _parsedEpisodeInfo.ReleaseTitle, _parsedEpisodeInfo.SeasonNumbers.First()))
                 .Returns(sceneMapping);
 
             var result = Subject.Map(_parsedEpisodeInfo, _series);
@@ -277,7 +278,7 @@ namespace NzbDrone.Core.Test.ParserTests.ParsingServiceTests
         [Test]
         public void should_not_use_scene_season_number_from_xem_mapping_if_alias_matches_a_specific_season_number_but_did_not_parse_season_1()
         {
-            _parsedEpisodeInfo.SeasonNumber = 2;
+            _parsedEpisodeInfo.SeasonNumbers = [2];
 
             var sceneMapping = new SceneMapping
             {
@@ -286,12 +287,124 @@ namespace NzbDrone.Core.Test.ParserTests.ParsingServiceTests
             };
 
             Mocker.GetMock<ISceneMappingService>()
-                .Setup(s => s.FindSceneMapping(_parsedEpisodeInfo.SeriesTitle, _parsedEpisodeInfo.ReleaseTitle, _parsedEpisodeInfo.SeasonNumber))
+                .Setup(s => s.FindSceneMapping(_parsedEpisodeInfo.SeriesTitle, _parsedEpisodeInfo.ReleaseTitle, _parsedEpisodeInfo.SeasonNumbers.First()))
                 .Returns(sceneMapping);
 
             var result = Subject.Map(_parsedEpisodeInfo, _series);
 
             result.MappedSeasonNumber.Should().Be(sceneMapping.SceneSeasonNumber);
+        }
+
+        [Test]
+        public void should_use_tvdbid_matching_when_alias_without_year_is_found()
+        {
+            var alias = "Series Alias";
+
+            _parsedEpisodeInfo.SeriesTitle = $"{alias} {_series.Year}";
+            _parsedEpisodeInfo.SeriesTitleInfo.TitleWithoutYear = alias;
+            _parsedEpisodeInfo.SeriesTitleInfo.Year = _series.Year;
+
+            Mocker.GetMock<ISceneMappingService>()
+                .Setup(s => s.FindTvdbId(alias, It.IsAny<string>(), It.IsAny<int>()))
+                .Returns(_series.TvdbId);
+
+            Mocker.GetMock<ISeriesService>()
+                .Setup(s => s.FindByTvdbId(_series.Id))
+                .Returns(_series);
+
+            var result = Subject.Map(_parsedEpisodeInfo, _series.TvdbId, _series.TvRageId, _series.ImdbId, null);
+
+            result.Series.Should().Be(_series);
+
+            Mocker.GetMock<ISeriesService>()
+                .Verify(v => v.FindByTvdbId(It.IsAny<int>()), Times.Once());
+        }
+
+        [Test]
+        public void should_not_use_tvdbid_matching_when_alias_without_year_is_found_with_wrong_year()
+        {
+            var alias = "Series Alias";
+
+            _parsedEpisodeInfo.SeriesTitle = $"{alias} {_series.Year}";
+            _parsedEpisodeInfo.SeriesTitleInfo.TitleWithoutYear = alias;
+            _parsedEpisodeInfo.SeriesTitleInfo.Year = _series.Year + 1;
+
+            Mocker.GetMock<ISceneMappingService>()
+                .Setup(s => s.FindTvdbId(alias, It.IsAny<string>(), It.IsAny<int>()))
+                .Returns(_series.TvdbId);
+
+            Mocker.GetMock<ISeriesService>()
+                .Setup(s => s.FindByTvdbId(_series.Id))
+                .Returns(_series);
+
+            var result = Subject.Map(_parsedEpisodeInfo, 0, 0, "", null);
+
+            result.Series.Should().BeNull();
+
+            Mocker.GetMock<ISeriesService>()
+                .Verify(v => v.FindByTvdbId(It.IsAny<int>()), Times.Once());
+        }
+
+        [Test]
+        public void should_use_year_when_looking_up_by_all_titles_in_release_title()
+        {
+            var alias = "Series Alias";
+            var title = "Series Title";
+
+            _parsedEpisodeInfo.SeriesTitle = $"Series Title AKA Series Alias {_series.Year}";
+            _parsedEpisodeInfo.SeriesTitleInfo.AllTitles = [
+                title,
+                alias
+            ];
+            _parsedEpisodeInfo.SeriesTitleInfo.Year = _series.Year;
+
+            Mocker.GetMock<ISeriesService>()
+                .Setup(s => s.FindByTitle(title, _series.Year))
+                .Returns(_series);
+
+            var result = Subject.Map(_parsedEpisodeInfo, 0, 0, "", null);
+
+            result.Series.Should().Be(_series);
+        }
+
+        [Test]
+        public void should_use_title_with_year_when_looking_up_by_all_titles_in_release_title()
+        {
+            var alias = "Series Alias";
+            var title = "Series Title";
+
+            _parsedEpisodeInfo.SeriesTitle = $"Series Title AKA Series Alias {_series.Year}";
+            _parsedEpisodeInfo.SeriesTitleInfo.AllTitles = [
+                title,
+                alias
+            ];
+            _parsedEpisodeInfo.SeriesTitleInfo.Year = _series.Year;
+
+            Mocker.GetMock<ISeriesService>()
+                .Setup(s => s.FindByTitle($"{title} {_series.Year}"))
+                .Returns(_series);
+
+            var result = Subject.Map(_parsedEpisodeInfo, 0, 0, "", null);
+
+            result.Series.Should().Be(_series);
+        }
+
+        [Test]
+        public void should_not_have_a_mapped_season_number_when_the_scene_mapping_has_no_season()
+        {
+            GivenMatchBySeriesTitle();
+
+            _parsedEpisodeInfo.SeasonNumbers = [];
+            _parsedEpisodeInfo.IsSeasonTitle = true;
+            _parsedEpisodeInfo.EpisodeNumbers = [];
+
+            Mocker.GetMock<ISceneMappingService>()
+                  .Setup(v => v.FindSceneMapping(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
+                  .Returns(new SceneMapping { TvdbId = _series.TvdbId });
+
+            var result = Subject.Map(_parsedEpisodeInfo, _series.TvdbId, _series.TvRageId, _series.ImdbId);
+
+            result.MappedSeasonNumber.Should().BeNull();
         }
     }
 }

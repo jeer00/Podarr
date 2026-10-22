@@ -1,17 +1,17 @@
 import React, { RefObject, useEffect, useMemo, useRef } from 'react';
-import { useSelector } from 'react-redux';
 import { FixedSizeList, ListChildComponentProps } from 'react-window';
-import { createSelector } from 'reselect';
-import AppState from 'App/State/AppState';
 import Column from 'Components/Table/Column';
 import VirtualTable from 'Components/Table/VirtualTable';
 import { SortDirection } from 'Helpers/Props/sortDirections';
 import Series from 'Series/Series';
+import {
+  useSeriesOption,
+  useSeriesTableOptions,
+} from 'Series/seriesOptionsStore';
 import getIndexOfFirstCharacter from 'Utilities/Array/getIndexOfFirstCharacter';
-import selectTableOptions from './selectTableOptions';
 import SeriesIndexRow from './SeriesIndexRow';
 import SeriesIndexTableHeader from './SeriesIndexTableHeader';
-import styles from './SeriesIndexTable.css';
+import styles from './SeriesIndexTable.module.css';
 
 interface RowItemData {
   items: Series[];
@@ -30,11 +30,6 @@ interface SeriesIndexTableProps {
   isSelectMode: boolean;
   isSmallScreen: boolean;
 }
-
-const columnsSelector = createSelector(
-  (state: AppState) => state.seriesIndex.columns,
-  (columns) => columns
-);
 
 function Row({ index, style, data }: ListChildComponentProps<RowItemData>) {
   const { items, sortKey, columns, isSelectMode } = data;
@@ -64,23 +59,21 @@ function Row({ index, style, data }: ListChildComponentProps<RowItemData>) {
   );
 }
 
-function SeriesIndexTable(props: SeriesIndexTableProps) {
-  const {
-    items,
-    sortKey,
-    sortDirection,
-    jumpToCharacter,
-    isSelectMode,
-    isSmallScreen,
-    scrollerRef,
-  } = props;
-
-  const columns = useSelector(columnsSelector);
-  const { showBanners } = useSelector(selectTableOptions);
+function SeriesIndexTable({
+  items,
+  sortKey,
+  sortDirection,
+  jumpToCharacter,
+  isSelectMode,
+  isSmallScreen,
+  scrollerRef,
+}: SeriesIndexTableProps) {
+  const columns = useSeriesOption('columns');
+  const { showBanners } = useSeriesTableOptions();
   const listRef = useRef<FixedSizeList<RowItemData>>(null);
 
   const rowHeight = useMemo(() => {
-    return showBanners ? 70 : 38;
+    return showBanners ? 72 : 48;
   }, [showBanners]);
 
   useEffect(() => {

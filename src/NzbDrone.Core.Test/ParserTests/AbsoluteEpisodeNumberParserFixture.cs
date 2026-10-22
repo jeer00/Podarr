@@ -146,7 +146,7 @@ namespace NzbDrone.Core.Test.ParserTests
             var result = Parser.Parser.ParseTitle(postTitle);
             result.Should().NotBeNull();
             result.AbsoluteEpisodeNumbers.Single().Should().Be(absoluteEpisodeNumber);
-            result.SeasonNumber.Should().Be(seasonNumber);
+            result.SeasonNumbers.Should().Equal(seasonNumber);
             result.EpisodeNumbers.SingleOrDefault().Should().Be(episodeNumber);
             result.SeriesTitle.Should().Be(title);
             result.FullSeason.Should().BeFalse();
@@ -160,8 +160,23 @@ namespace NzbDrone.Core.Test.ParserTests
             var result = Parser.Parser.ParseTitle(postTitle);
             result.Should().NotBeNull();
             result.AbsoluteEpisodeNumbers.Single().Should().Be(absoluteEpisodeNumber);
-            result.SeasonNumber.Should().Be(0);
+            result.SeasonNumbers.Should().Equal(0);
             result.EpisodeNumbers.SingleOrDefault().Should().Be(0);
+            result.SeriesTitle.Should().Be(title);
+            result.FullSeason.Should().BeFalse();
+            result.Special.Should().BeTrue();
+        }
+
+        [TestCase("[Underwater] Another OVA - The Other -Karma- (BD 1080p) [3A561D0E].mkv", "Another", 0)]
+        [TestCase("[sam] Long Series - NCOP [BD 1080p FLAC] [BBC3BC68].mkv", "Long Series", 0)]
+        [TestCase("[sam] Long Series - NCED [BD 1080p FLAC] [BBC3BC68].mkv", "Long Series", 0)]
+        public void should_parse_absolute_specials_without_absolute_number(string postTitle, string title, int absoluteEpisodeNumber)
+        {
+            var result = Parser.Parser.ParseTitle(postTitle);
+            result.Should().NotBeNull();
+            result.AbsoluteEpisodeNumbers.Should().BeEmpty();
+            result.SeasonNumbers.Should().Equal(0);
+            result.EpisodeNumbers.Should().BeEmpty();
             result.SeriesTitle.Should().Be(title);
             result.FullSeason.Should().BeFalse();
             result.Special.Should().BeTrue();
@@ -185,6 +200,11 @@ namespace NzbDrone.Core.Test.ParserTests
         [TestCase("[Erai-raws] Series Title! - 01 ~ 10 [1080p][Multiple Subtitle]", "Series Title!", 1, 10)]
         [TestCase("[Erai-raws] Series-Title! 2 - 01 ~ 10 [1080p][Multiple Subtitle]", "Series-Title! 2", 1, 10)]
         [TestCase("Series_Title_2_[01-05]_[AniLibria_TV]_[WEBRip_1080p]", "Series Title 2", 1, 5)]
+        [TestCase("[Moxie] One Series - The Country (892-916) (BD Remux 1080p AAC FLAC) [Dual Audio]", "One Series - The Country", 892, 916)]
+        [TestCase("[HatSubs] One Series (1017-1088) (WEB 1080p)", "One Series", 1017, 1088)]
+        [TestCase("[HatSubs] One Series 1017-1088 (WEB 1080p)", "One Series", 1017, 1088)]
+        [TestCase("[Group] Title S01 - 01-12 [1080p]", "Title S01", 1, 12)]
+        [TestCase("[Group] Title S01 - 01-02 [1080p]", "Title S01", 1, 2)]
 
         // [TestCase("", "", 1, 2)]
         public void should_parse_multi_episode_absolute_numbers(string postTitle, string title, int firstAbsoluteEpisodeNumber, int lastAbsoluteEpisodeNumber)
@@ -199,6 +219,9 @@ namespace NzbDrone.Core.Test.ParserTests
         }
 
         [TestCase("[Vivid] Some Anime Show S01 [Web][MKV][h264 10-bit][1080p][AAC 2.0]", "Some Anime Show", 1)]
+        [TestCase("[Group] Title S01 12 13 [1080p]", "Title", 1)]
+        [TestCase("[Group] Title S03 10 11 [1080p]", "Title", 3)]
+        [TestCase("[Group] Title S1 05 [1080p]", "Title", 1)]
         [TestCase("Anime, Title? | Japanse Anime, Title? [Season 1 + EXTRA] [BD 1080p x265 HEVC OPUS] [Dual-Audio]", "Anime, Title | Japanse Anime, Title", 1)]
         [TestCase("[Judas] Japanse Anime, Title (Anime, Title?) (Season 1) [1080p][HEVC x265 10bit][Multi-Subs] (Batch)", "Japanse Anime, Title (Anime, Title)", 1)]
         [TestCase("[Judas] Japanse Anime, Title (Anime, Title?) (Season 1) [1080p][HEVC x265 10bit][Multi-Subs] (Batch)", "Japanse Anime, Title (Anime, Title)", 1)]
@@ -209,7 +232,7 @@ namespace NzbDrone.Core.Test.ParserTests
             result.AbsoluteEpisodeNumbers.Should().BeEmpty();
             result.SeriesTitle.Should().Be(title);
             result.FullSeason.Should().BeTrue();
-            result.SeasonNumber.Should().Be(seasonNumber);
+            result.SeasonNumbers.Should().Equal(seasonNumber);
         }
 
         [TestCase("[Anime Time] Series no Mayo - 12.5.mkv", "Series no Mayo", 12.5)]
@@ -232,7 +255,7 @@ namespace NzbDrone.Core.Test.ParserTests
             var result = Parser.Parser.ParsePath(Path.Combine(@"C:\Test".AsOsAgnostic(), releaseName, filename));
             result.Should().NotBeNull();
             result.AbsoluteEpisodeNumbers.Single().Should().Be(absoluteEpisodeNumber);
-            result.SeasonNumber.Should().Be(0);
+            result.SeasonNumbers.Should().Equal(0);
             result.EpisodeNumbers.Should().BeEmpty();
             result.SeriesTitle.Should().Be(title);
             result.FullSeason.Should().BeFalse();
@@ -248,7 +271,7 @@ namespace NzbDrone.Core.Test.ParserTests
 
             result.Should().NotBeNull();
             result.EpisodeNumbers.Should().HaveCount(1);
-            result.SeasonNumber.Should().Be(seasonNumber);
+            result.SeasonNumbers.Should().Equal(seasonNumber);
             result.EpisodeNumbers.First().Should().Be(episodeNumber);
             result.SeriesTitle.Should().Be(title);
             result.SpecialAbsoluteEpisodeNumbers.Should().HaveCount(1);

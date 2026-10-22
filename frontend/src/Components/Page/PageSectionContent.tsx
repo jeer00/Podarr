@@ -3,11 +3,13 @@ import { Error } from 'App/State/AppSectionState';
 import Alert from 'Components/Alert';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import { kinds } from 'Helpers/Props';
+import { ApiError } from 'Utilities/Fetch/fetchJson';
+import styles from './PageSectionContent.module.css';
 
 interface PageSectionContentProps {
   isFetching: boolean;
   isPopulated: boolean;
-  error?: Error;
+  error?: Error | ApiError | null;
   errorMessage: string;
   children: React.ReactNode;
 }
@@ -28,7 +30,7 @@ function PageSectionContent({
   }
 
   if (isPopulated && !error) {
-    return <div>{children}</div>;
+    return <div className={styles.content}>{children}</div>;
   }
 
   return null;

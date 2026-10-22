@@ -11,7 +11,7 @@ import {
 import { InputChanged, InputOnChange } from 'typings/inputs';
 import isString from 'Utilities/String/isString';
 import { FilterBuilderRowValueProps, NAME } from './FilterBuilderRowValue';
-import styles from './DateFilterBuilderRowValue.css';
+import styles from './DateFilterBuilderRowValue.module.css';
 
 const timeOptions: DateFilterBuilderTime[] = [
   { key: 'seconds', value: 'seconds' },
@@ -33,7 +33,7 @@ function isInFilter(filterType: FilterType) {
 
 interface DateFilterBuilderRowValueProps<T>
   extends Omit<
-    FilterBuilderRowValueProps<T, string>,
+    FilterBuilderRowValueProps<T, string, string>,
     'filterValue' | 'onChange'
   > {
   filterValue: string | DateFilterValue;

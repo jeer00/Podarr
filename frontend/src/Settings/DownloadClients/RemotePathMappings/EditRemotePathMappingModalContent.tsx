@@ -1,15 +1,11 @@
 import React, { useCallback, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { createSelector } from 'reselect';
-import AppState from 'App/State/AppState';
-import Alert from 'Components/Alert';
 import Form from 'Components/Form/Form';
-import FormGroup from 'Components/Form/FormGroup';
-import FormInputGroup from 'Components/Form/FormInputGroup';
+import FormInput from 'Components/Form/FormInput';
+import FormInputHelpText from 'Components/Form/FormInputHelpText';
 import FormLabel from 'Components/Form/FormLabel';
+import FormRow from 'Components/Form/FormRow';
 import Button from 'Components/Link/Button';
 import SpinnerErrorButton from 'Components/Link/SpinnerErrorButton';
-import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import ModalBody from 'Components/Modal/ModalBody';
 import ModalContent from 'Components/Modal/ModalContent';
 import ModalFooter from 'Components/Modal/ModalFooter';
@@ -17,48 +13,10 @@ import ModalHeader from 'Components/Modal/ModalHeader';
 import useDownloadClientHostOptions from 'DownloadClient/useDownloadClientHostOptions';
 import usePrevious from 'Helpers/Hooks/usePrevious';
 import { inputTypes, kinds } from 'Helpers/Props';
-import {
-  saveRemotePathMapping,
-  setRemotePathMappingValue,
-} from 'Store/Actions/settingsActions';
-import selectSettings from 'Store/Selectors/selectSettings';
 import { InputChanged } from 'typings/inputs';
-import RemotePathMapping from 'typings/Settings/RemotePathMapping';
 import translate from 'Utilities/String/translate';
-import styles from './EditRemotePathMappingModalContent.css';
-
-const newRemotePathMapping: RemotePathMapping & { [key: string]: unknown } = {
-  id: 0,
-  host: '',
-  remotePath: '',
-  localPath: '',
-};
-
-function createRemotePathMappingSelector(id?: number) {
-  return createSelector(
-    (state: AppState) => state.settings.remotePathMappings,
-    (remotePathMappings) => {
-      const { isFetching, error, isSaving, saveError, pendingChanges, items } =
-        remotePathMappings;
-
-      const mapping = id
-        ? items.find((i) => i.id === id)!
-        : newRemotePathMapping;
-
-      const settings = selectSettings(mapping, pendingChanges, saveError);
-
-      return {
-        id,
-        isFetching,
-        error,
-        isSaving,
-        saveError,
-        item: settings.settings,
-        ...settings,
-      };
-    }
-  );
-}
+import { useManageRemotePathMappings } from './useRemotePathMappings';
+import styles from './EditRemotePathMappingModalContent.module.css';
 
 export interface EditRemotePathMappingModalContentProps {
   id?: number;
@@ -71,51 +29,50 @@ function EditRemotePathMappingModalContent({
   onDeleteRemotePathMappingPress,
   onModalClose,
 }: EditRemotePathMappingModalContentProps) {
-  const dispatch = useDispatch();
   const downloadClientHosts = useDownloadClientHostOptions();
 
   const {
-    isFetching,
-    error,
+    item,
     isSaving,
     saveError,
-    item,
     validationErrors,
     validationWarnings,
-  } = useSelector(createRemotePathMappingSelector(id));
+    updateValue,
+    saveProvider,
+  } = useManageRemotePathMappings(id ?? 0);
 
   const { host, remotePath, localPath } = item;
   const wasSaving = usePrevious(isSaving);
 
   const handleInputChange = useCallback(
     (change: InputChanged) => {
-      // @ts-expect-error - actions are not typed
-      dispatch(setRemotePathMappingValue(change));
+      // @ts-expect-error - change is not yet typed
+      updateValue(change.name, change.value);
     },
-    [dispatch]
+    [updateValue]
   );
 
   const handleSavePress = useCallback(() => {
-    dispatch(saveRemotePathMapping({ id }));
-  }, [id, dispatch]);
+    saveProvider();
+  }, [saveProvider]);
 
-  useEffect(() => {
-    if (!id) {
-      Object.keys(newRemotePathMapping).forEach((name) => {
-        if (name === 'id') {
-          return;
-        }
+  // useEffect(() => {
+  //   if (!id) {
+  //     Object.keys(newRemotePathMapping).forEach((name) => {
+  //       if (name === 'id') {
+  //         return;
+  //       }
 
-        dispatch(
-          // @ts-expect-error - actions are not typed
-          setRemotePathMappingValue({
-            name,
-            value: newRemotePathMapping[name],
-          })
-        );
-      });
-    }
-  }, [id, dispatch]);
+  //       dispatch(
+  //         // @ts-expect-error - actions are not typed
+  //         setRemotePathMappingValue({
+  //           name,
+  //           value: newRemotePathMapping[name],
+  //         })
+  //       );
+  //     });
+  //   }
+  // }, [id, dispatch]);
 
   useEffect(() => {
     if (wasSaving && !isSaving && !saveError) {
@@ -132,58 +89,57 @@ function EditRemotePathMappingModalContent({
       </ModalHeader>
 
       <ModalBody className={styles.body}>
-        {isFetching ? <LoadingIndicator /> : null}
+        <Form
+          validationErrors={validationErrors}
+          validationWarnings={validationWarnings}
+        >
+          <FormRow>
+            <FormLabel>{translate('Host')}</FormLabel>
 
-        {!isFetching && !!error ? (
-          <Alert kind={kinds.DANGER}>
-            {translate('AddRemotePathMappingError')}
-          </Alert>
-        ) : null}
+            <FormInputHelpText
+              text={translate('RemotePathMappingHostHelpText')}
+            />
 
-        {!isFetching && !error ? (
-          <Form
-            validationErrors={validationErrors}
-            validationWarnings={validationWarnings}
-          >
-            <FormGroup>
-              <FormLabel>{translate('Host')}</FormLabel>
+            <FormInput
+              type={inputTypes.SELECT}
+              name="host"
+              {...host}
+              values={downloadClientHosts}
+              onChange={handleInputChange}
+            />
+          </FormRow>
 
-              <FormInputGroup
-                type={inputTypes.SELECT}
-                name="host"
-                helpText={translate('RemotePathMappingHostHelpText')}
-                {...host}
-                values={downloadClientHosts}
-                onChange={handleInputChange}
-              />
-            </FormGroup>
+          <FormRow>
+            <FormLabel>{translate('RemotePath')}</FormLabel>
 
-            <FormGroup>
-              <FormLabel>{translate('RemotePath')}</FormLabel>
+            <FormInputHelpText
+              text={translate('RemotePathMappingRemotePathHelpText')}
+            />
 
-              <FormInputGroup
-                type={inputTypes.TEXT}
-                name="remotePath"
-                helpText={translate('RemotePathMappingRemotePathHelpText')}
-                {...remotePath}
-                onChange={handleInputChange}
-              />
-            </FormGroup>
+            <FormInput
+              type={inputTypes.TEXT}
+              name="remotePath"
+              {...remotePath}
+              onChange={handleInputChange}
+            />
+          </FormRow>
 
-            <FormGroup>
-              <FormLabel>{translate('LocalPath')}</FormLabel>
+          <FormRow>
+            <FormLabel>{translate('LocalPath')}</FormLabel>
 
-              <FormInputGroup
-                type={inputTypes.PATH}
-                name="localPath"
-                helpText={translate('RemotePathMappingLocalPathHelpText')}
-                includeFiles={false}
-                {...localPath}
-                onChange={handleInputChange}
-              />
-            </FormGroup>
-          </Form>
-        ) : null}
+            <FormInputHelpText
+              text={translate('RemotePathMappingLocalPathHelpText')}
+            />
+
+            <FormInput
+              type={inputTypes.PATH}
+              name="localPath"
+              includeFiles={false}
+              {...localPath}
+              onChange={handleInputChange}
+            />
+          </FormRow>
+        </Form>
       </ModalBody>
 
       <ModalFooter>

@@ -1,14 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import Card from 'Components/Card';
 import ConfirmModal from 'Components/Modal/ConfirmModal';
+import SettingsCard from 'Components/SettingsCard/SettingsCard';
+import settingsCardStyles from 'Components/SettingsCard/SettingsCard.module.css';
 import { kinds } from 'Helpers/Props';
-import { deleteTag } from 'Store/Actions/tagActions';
-import createTagDetailsSelector from 'Store/Selectors/createTagDetailsSelector';
+import { useTagDetail } from 'Tags/useTagDetails';
+import { useDeleteTag } from 'Tags/useTags';
 import translate from 'Utilities/String/translate';
 import TagDetailsModal from './Details/TagDetailsModal';
 import TagInUse from './TagInUse';
-import styles from './Tag.css';
 
 interface TagProps {
   id: number;
@@ -16,17 +15,18 @@ interface TagProps {
 }
 
 function Tag({ id, label }: TagProps) {
-  const dispatch = useDispatch();
+  const { deleteTag } = useDeleteTag(id);
   const {
-    delayProfileIds = [],
-    importListIds = [],
-    notificationIds = [],
-    restrictionIds = [],
-    indexerIds = [],
-    downloadClientIds = [],
-    autoTagIds = [],
-    seriesIds = [],
-  } = useSelector(createTagDetailsSelector(id)) ?? {};
+    delayProfileIds,
+    importListIds,
+    notificationIds,
+    restrictionIds,
+    excludedReleaseProfileIds,
+    indexerIds,
+    downloadClientIds,
+    autoTagIds,
+    seriesIds,
+  } = useTagDetail(id);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isDeleteTagModalOpen, setIsDeleteTagModalOpen] = useState(false);
 
@@ -35,10 +35,15 @@ function Tag({ id, label }: TagProps) {
     importListIds.length ||
     notificationIds.length ||
     restrictionIds.length ||
+    excludedReleaseProfileIds.length ||
     indexerIds.length ||
     downloadClientIds.length ||
     autoTagIds.length ||
     seriesIds.length
+  );
+
+  const mergedReleaseProfileIds = Array.from(
+    new Set([...restrictionIds, ...excludedReleaseProfileIds]).values()
   );
 
   const handleShowDetailsPress = useCallback(() => {
@@ -55,23 +60,21 @@ function Tag({ id, label }: TagProps) {
   }, []);
 
   const handleConfirmDeleteTag = useCallback(() => {
+    deleteTag();
+  }, [deleteTag]);
+
+  const handleDeleteTagModalClose = useCallback(() => {
     setIsDeleteTagModalOpen(false);
   }, []);
 
-  const handleDeleteTagModalClose = useCallback(() => {
-    dispatch(deleteTag({ id }));
-  }, [id, dispatch]);
-
   return (
-    <Card
-      className={styles.tag}
-      overlayContent={true}
+    <SettingsCard
+      name={label}
+      aria-label={translate('TagDetails', { label })}
       onPress={handleShowDetailsPress}
     >
-      <div className={styles.label}>{label}</div>
-
       {isTagUsed ? (
-        <div>
+        <div className={settingsCardStyles.labels}>
           <TagInUse label={translate('Series')} count={seriesIds.length} />
 
           <TagInUse
@@ -95,7 +98,7 @@ function Tag({ id, label }: TagProps) {
           <TagInUse
             label={translate('ReleaseProfile')}
             labelPlural={translate('ReleaseProfiles')}
-            count={restrictionIds.length}
+            count={mergedReleaseProfileIds.length}
           />
 
           <TagInUse
@@ -115,9 +118,9 @@ function Tag({ id, label }: TagProps) {
             count={autoTagIds.length}
           />
         </div>
-      ) : null}
-
-      {!isTagUsed && <div>{translate('NoLinks')}</div>}
+      ) : (
+        <div>{translate('NoLinks')}</div>
+      )}
 
       <TagDetailsModal
         label={label}
@@ -126,7 +129,7 @@ function Tag({ id, label }: TagProps) {
         delayProfileIds={delayProfileIds}
         importListIds={importListIds}
         notificationIds={notificationIds}
-        restrictionIds={restrictionIds}
+        releaseProfileIds={mergedReleaseProfileIds}
         indexerIds={indexerIds}
         downloadClientIds={downloadClientIds}
         autoTagIds={autoTagIds}
@@ -144,7 +147,7 @@ function Tag({ id, label }: TagProps) {
         onConfirm={handleConfirmDeleteTag}
         onCancel={handleDeleteTagModalClose}
       />
-    </Card>
+    </SettingsCard>
   );
 }
 

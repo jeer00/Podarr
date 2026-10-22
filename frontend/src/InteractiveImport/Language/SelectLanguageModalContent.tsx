@@ -1,21 +1,20 @@
 import React, { useCallback, useState } from 'react';
-import { useSelector } from 'react-redux';
 import Alert from 'Components/Alert';
 import Form from 'Components/Form/Form';
-import FormGroup from 'Components/Form/FormGroup';
-import FormInputGroup from 'Components/Form/FormInputGroup';
+import FormInput from 'Components/Form/FormInput';
 import FormLabel from 'Components/Form/FormLabel';
+import FormRow from 'Components/Form/FormRow';
 import Button from 'Components/Link/Button';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import ModalBody from 'Components/Modal/ModalBody';
 import ModalContent from 'Components/Modal/ModalContent';
 import ModalFooter from 'Components/Modal/ModalFooter';
 import ModalHeader from 'Components/Modal/ModalHeader';
-import { inputTypes, kinds, sizes } from 'Helpers/Props';
+import { inputTypes, kinds } from 'Helpers/Props';
 import Language from 'Language/Language';
-import createLanguagesSelector from 'Store/Selectors/createLanguagesSelector';
+import { useFilteredLanguages } from 'Language/useLanguages';
 import translate from 'Utilities/String/translate';
-import styles from './SelectLanguageModalContent.css';
+import styles from './SelectLanguageModalContent.module.css';
 
 interface SelectLanguageModalContentProps {
   languageIds: number[];
@@ -27,12 +26,15 @@ interface SelectLanguageModalContentProps {
 function SelectLanguageModalContent(props: SelectLanguageModalContentProps) {
   const { modalTitle, onLanguagesSelect, onModalClose } = props;
 
-  const { isFetching, isPopulated, error, items } = useSelector(
-    createLanguagesSelector({
-      Any: true,
-      Original: true,
-    })
-  );
+  const {
+    data: items = [],
+    isFetching,
+    isFetched: isPopulated,
+    error,
+  } = useFilteredLanguages({
+    Any: true,
+    Original: true,
+  });
 
   const [languageIds, setLanguageIds] = useState(props.languageIds);
 
@@ -76,19 +78,15 @@ function SelectLanguageModalContent(props: SelectLanguageModalContentProps) {
           <Form>
             {items.map((language) => {
               return (
-                <FormGroup
-                  key={language.id}
-                  size={sizes.EXTRA_SMALL}
-                  className={styles.languageInput}
-                >
+                <FormRow key={language.id} className={styles.languageInput}>
                   <FormLabel>{language.name}</FormLabel>
-                  <FormInputGroup
+                  <FormInput
                     type={inputTypes.CHECK}
                     name={language.id.toString()}
                     value={languageIds.includes(language.id)}
                     onChange={onLanguageChange}
                   />
-                </FormGroup>
+                </FormRow>
               );
             })}
           </Form>

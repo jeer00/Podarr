@@ -1,25 +1,18 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import * as commandNames from 'Commands/commandNames';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import CommandNames from 'Commands/CommandNames';
+import { useCommandExecuting } from 'Commands/useCommands';
 import Alert from 'Components/Alert';
 import Form from 'Components/Form/Form';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import ConfirmModal from 'Components/Modal/ConfirmModal';
-import PageContent from 'Components/Page/PageContent';
 import PageContentBody from 'Components/Page/PageContentBody';
+import PageHeading from 'Components/Page/PageHeading';
 import usePrevious from 'Helpers/Hooks/usePrevious';
 import { kinds } from 'Helpers/Props';
-import SettingsToolbar from 'Settings/SettingsToolbar';
-import { clearPendingChanges } from 'Store/Actions/baseActions';
-import {
-  fetchGeneralSettings,
-  saveGeneralSettings,
-  setGeneralSettingsValue,
-} from 'Store/Actions/settingsActions';
-import { restart } from 'Store/Actions/systemActions';
-import createCommandExecutingSelector from 'Store/Selectors/createCommandExecutingSelector';
-import createSettingsSectionSelector from 'Store/Selectors/createSettingsSectionSelector';
-import useIsWindowsService from 'System/useIsWindowsService';
+import settingsStyles from 'Settings/Settings.module.css';
+import SettingsPage from 'Settings/SettingsPage';
+import { useIsWindowsService } from 'System/Status/useSystemStatus';
+import { useRestart } from 'System/useSystem';
 import { InputChanged } from 'typings/inputs';
 import translate from 'Utilities/String/translate';
 import AnalyticSettings from './AnalyticSettings';
@@ -29,13 +22,14 @@ import LoggingSettings from './LoggingSettings';
 import ProxySettings from './ProxySettings';
 import SecuritySettings from './SecuritySettings';
 import UpdateSettings from './UpdateSettings';
-
-const SECTION = 'general';
+import { useManageGeneralSettings } from './useGeneralSettings';
 
 const requiresRestartKeys = [
   'bindAddress',
   'port',
   'urlBase',
+  'allowedHosts',
+  'trustedNetworks',
   'instanceName',
   'enableSsl',
   'sslPort',
@@ -44,174 +38,181 @@ const requiresRestartKeys = [
 ];
 
 function GeneralSettings() {
-  const dispatch = useDispatch();
   const isWindowsService = useIsWindowsService();
-  const isResettingApiKey = useSelector(
-    createCommandExecutingSelector(commandNames.RESET_API_KEY)
-  );
+  const { mutate: restart } = useRestart();
+  const isResettingApiKey = useCommandExecuting(CommandNames.ResetApiKey);
 
   const {
-    isFetching,
-    isPopulated,
-    isSaving,
-    error,
-    saveError,
     settings,
-    hasSettings,
+    isFetching,
+    isFetched,
+    error,
+    updateSetting,
+    saveSettings,
+    isSaving,
+    saveError,
     hasPendingChanges,
     pendingChanges,
     validationErrors,
     validationWarnings,
-  } = useSelector(createSettingsSectionSelector(SECTION));
+  } = useManageGeneralSettings();
 
   const wasResettingApiKey = usePrevious(isResettingApiKey);
   const wasSaving = usePrevious(isSaving);
-  const previousPendingChanges = usePrevious(pendingChanges);
+  const isRestartRequired = useRef(false);
 
   const [isRestartRequiredModalOpen, setIsRestartRequiredModalOpen] =
     useState(false);
+  const [isReloadRequired, setIsReloadRequired] = useState(false);
 
   const handleInputChange = useCallback(
     (change: InputChanged) => {
-      // @ts-expect-error - actions aren't typed
-      dispatch(setGeneralSettingsValue(change));
+      // @ts-expect-error input change events aren't typed
+      updateSetting(change.name, change.value);
     },
-    [dispatch]
+    [updateSetting]
   );
 
   const handleSavePress = useCallback(() => {
-    dispatch(saveGeneralSettings());
-  }, [dispatch]);
+    isRestartRequired.current = Object.keys(pendingChanges ?? {}).some(
+      (key) => {
+        return requiresRestartKeys.includes(key);
+      }
+    );
+
+    saveSettings();
+  }, [pendingChanges, saveSettings]);
 
   const handleConfirmRestart = useCallback(() => {
     setIsRestartRequiredModalOpen(false);
-    dispatch(restart());
-  }, [dispatch]);
+    restart();
+  }, [restart]);
 
   const handleCloseRestartRequiredModalOpen = useCallback(() => {
     setIsRestartRequiredModalOpen(false);
   }, []);
 
   useEffect(() => {
-    dispatch(fetchGeneralSettings());
-
-    return () => {
-      dispatch(clearPendingChanges({ section: `settings.${SECTION}` }));
-    };
-  }, [dispatch]);
+    if (!isSaving && wasSaving && !saveError && isRestartRequired.current) {
+      isRestartRequired.current = false;
+      setIsRestartRequiredModalOpen(true);
+    }
+  }, [isSaving, wasSaving, saveError]);
 
   useEffect(() => {
     if (!isResettingApiKey && wasResettingApiKey) {
-      dispatch(fetchGeneralSettings());
-    }
-  }, [isResettingApiKey, wasResettingApiKey, dispatch]);
-
-  useEffect(() => {
-    const isRestartedRequired =
-      previousPendingChanges &&
-      Object.keys(previousPendingChanges).some((key) => {
-        return requiresRestartKeys.includes(key);
-      });
-
-    if (!isSaving && wasSaving && !saveError && isRestartedRequired) {
-      setIsRestartRequiredModalOpen(true);
-    }
-  }, [isSaving, wasSaving, saveError, previousPendingChanges]);
-
-  useEffect(() => {
-    if (!isResettingApiKey && wasResettingApiKey) {
-      setIsRestartRequiredModalOpen(true);
+      setIsReloadRequired(true);
     }
   }, [isResettingApiKey, wasResettingApiKey]);
 
+  useEffect(() => {
+    if (isReloadRequired && !isSaving) {
+      location.reload();
+    }
+  }, [isReloadRequired, isSaving]);
+
   return (
-    <PageContent title={translate('GeneralSettings')}>
-      <SettingsToolbar
-        hasPendingChanges={hasPendingChanges}
-        isSaving={isSaving}
-        onSavePress={handleSavePress}
-      />
-
+    <SettingsPage
+      title={translate('GeneralSettings')}
+      hasPendingChanges={hasPendingChanges}
+      isSaving={isSaving}
+      onSavePress={handleSavePress}
+    >
       <PageContentBody>
-        {isFetching && !isPopulated ? <LoadingIndicator /> : null}
+        <div className={settingsStyles.section}>
+          <PageHeading
+            scope={translate('Settings')}
+            title={translate('General')}
+          />
 
-        {!isFetching && error ? (
-          <Alert kind={kinds.DANGER}>
-            {translate('GeneralSettingsLoadError')}
-          </Alert>
-        ) : null}
+          {isFetching && !isFetched ? <LoadingIndicator /> : null}
 
-        {hasSettings && isPopulated && !error ? (
-          <Form
-            id="generalSettings"
-            validationErrors={validationErrors}
-            validationWarnings={validationWarnings}
-          >
-            <HostSettings
-              bindAddress={settings.bindAddress}
-              port={settings.port}
-              urlBase={settings.urlBase}
-              instanceName={settings.instanceName}
-              applicationUrl={settings.applicationUrl}
-              enableSsl={settings.enableSsl}
-              sslPort={settings.sslPort}
-              sslCertPath={settings.sslCertPath}
-              sslCertPassword={settings.sslCertPassword}
-              launchBrowser={settings.launchBrowser}
-              onInputChange={handleInputChange}
-            />
+          {!isFetching && error ? (
+            <Alert kind={kinds.DANGER}>
+              {translate('GeneralSettingsLoadError')}
+            </Alert>
+          ) : null}
 
-            <SecuritySettings
-              authenticationMethod={settings.authenticationMethod}
-              authenticationRequired={settings.authenticationRequired}
-              username={settings.username}
-              password={settings.password}
-              passwordConfirmation={settings.passwordConfirmation}
-              apiKey={settings.apiKey}
-              certificateValidation={settings.certificateValidation}
-              isResettingApiKey={isResettingApiKey}
-              onInputChange={handleInputChange}
-            />
+          {settings && isFetched && !error ? (
+            <Form
+              id="generalSettings"
+              validationErrors={validationErrors}
+              validationWarnings={validationWarnings}
+            >
+              <HostSettings
+                bindAddress={settings.bindAddress}
+                port={settings.port}
+                urlBase={settings.urlBase}
+                instanceName={settings.instanceName}
+                applicationUrl={settings.applicationUrl}
+                allowedHosts={settings.allowedHosts}
+                enableSsl={settings.enableSsl}
+                sslPort={settings.sslPort}
+                sslCertPath={settings.sslCertPath}
+                sslKeyPath={settings.sslKeyPath}
+                sslCertPassword={settings.sslCertPassword}
+                launchBrowser={settings.launchBrowser}
+                onInputChange={handleInputChange}
+              />
 
-            <ProxySettings
-              proxyEnabled={settings.proxyEnabled}
-              proxyType={settings.proxyType}
-              proxyHostname={settings.proxyHostname}
-              proxyPort={settings.proxyPort}
-              proxyUsername={settings.proxyUsername}
-              proxyPassword={settings.proxyPassword}
-              proxyBypassFilter={settings.proxyBypassFilter}
-              proxyBypassLocalAddresses={settings.proxyBypassLocalAddresses}
-              onInputChange={handleInputChange}
-            />
+              <SecuritySettings
+                authenticationMethod={settings.authenticationMethod}
+                authenticationRequired={settings.authenticationRequired}
+                username={settings.username}
+                password={settings.password}
+                passwordConfirmation={settings.passwordConfirmation}
+                oidcAuthority={settings.oidcAuthority}
+                oidcClientId={settings.oidcClientId}
+                oidcClientSecret={settings.oidcClientSecret}
+                oidcUserIdentifier={settings.oidcUserIdentifier}
+                oidcScopes={settings.oidcScopes}
+                apiKey={settings.apiKey}
+                certificateValidation={settings.certificateValidation}
+                trustedNetworks={settings.trustedNetworks}
+                isResettingApiKey={isResettingApiKey}
+                onInputChange={handleInputChange}
+              />
 
-            <LoggingSettings
-              logLevel={settings.logLevel}
-              logSizeLimit={settings.logSizeLimit}
-              onInputChange={handleInputChange}
-            />
+              <ProxySettings
+                proxyEnabled={settings.proxyEnabled}
+                proxyType={settings.proxyType}
+                proxyHostname={settings.proxyHostname}
+                proxyPort={settings.proxyPort}
+                proxyUsername={settings.proxyUsername}
+                proxyPassword={settings.proxyPassword}
+                proxyBypassFilter={settings.proxyBypassFilter}
+                proxyBypassLocalAddresses={settings.proxyBypassLocalAddresses}
+                onInputChange={handleInputChange}
+              />
 
-            <AnalyticSettings
-              analyticsEnabled={settings.analyticsEnabled}
-              onInputChange={handleInputChange}
-            />
+              <LoggingSettings
+                logLevel={settings.logLevel}
+                logSizeLimit={settings.logSizeLimit}
+                onInputChange={handleInputChange}
+              />
 
-            <UpdateSettings
-              branch={settings.branch}
-              updateAutomatically={settings.updateAutomatically}
-              updateMechanism={settings.updateMechanism}
-              updateScriptPath={settings.updateScriptPath}
-              onInputChange={handleInputChange}
-            />
+              <AnalyticSettings
+                analyticsEnabled={settings.analyticsEnabled}
+                onInputChange={handleInputChange}
+              />
 
-            <BackupSettings
-              backupFolder={settings.backupFolder}
-              backupInterval={settings.backupInterval}
-              backupRetention={settings.backupRetention}
-              onInputChange={handleInputChange}
-            />
-          </Form>
-        ) : null}
+              <UpdateSettings
+                branch={settings.branch}
+                updateAutomatically={settings.updateAutomatically}
+                updateMechanism={settings.updateMechanism}
+                updateScriptPath={settings.updateScriptPath}
+                onInputChange={handleInputChange}
+              />
+
+              <BackupSettings
+                backupFolder={settings.backupFolder}
+                backupInterval={settings.backupInterval}
+                backupRetention={settings.backupRetention}
+                onInputChange={handleInputChange}
+              />
+            </Form>
+          ) : null}
+        </div>
       </PageContentBody>
 
       <ConfirmModal
@@ -226,7 +227,7 @@ function GeneralSettings() {
         onConfirm={handleConfirmRestart}
         onCancel={handleCloseRestartRequiredModalOpen}
       />
-    </PageContent>
+    </SettingsPage>
   );
 }
 

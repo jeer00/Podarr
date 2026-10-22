@@ -1,8 +1,11 @@
-import { createPersist } from 'Helpers/createPersist';
+import { createOptionsStore } from 'Helpers/Hooks/useOptionsStore';
+import Language from 'Language/Language';
+import { usePreferredMetadataLanguage } from 'Language/useLanguages';
 import { SeriesMonitor, SeriesType } from 'Series/Series';
 
 export interface AddSeriesOptions {
   rootFolderPath: string;
+  language: Language | null;
   monitor: SeriesMonitor;
   qualityProfileId: number;
   seriesType: SeriesType;
@@ -12,11 +15,11 @@ export interface AddSeriesOptions {
   tags: number[];
 }
 
-const addSeriesOptionsStore = createPersist<AddSeriesOptions>(
-  'add_series_options',
-  () => {
+const { useOptions, useOption, setOption } =
+  createOptionsStore<AddSeriesOptions>('add_series_options', () => {
     return {
       rootFolderPath: '',
+      language: null,
       monitor: 'all',
       qualityProfileId: 0,
       seriesType: 'standard',
@@ -25,25 +28,15 @@ const addSeriesOptionsStore = createPersist<AddSeriesOptions>(
       searchForCutoffUnmetEpisodes: false,
       tags: [],
     };
-  }
-);
+  });
 
-export const useAddSeriesOptions = () => {
-  return addSeriesOptionsStore((state) => state);
-};
+export const useAddSeriesOptions = useOptions;
+export const useAddSeriesOption = useOption;
+export const setAddSeriesOption = setOption;
 
-export const useAddSeriesOption = <K extends keyof AddSeriesOptions>(
-  key: K
-) => {
-  return addSeriesOptionsStore((state) => state[key]);
-};
+export const useAddSeriesLanguage = () => {
+  const language = useAddSeriesOption('language');
+  const preferredLanguage = usePreferredMetadataLanguage();
 
-export const setAddSeriesOption = <K extends keyof AddSeriesOptions>(
-  key: K,
-  value: AddSeriesOptions[K]
-) => {
-  addSeriesOptionsStore.setState((state) => ({
-    ...state,
-    [key]: value,
-  }));
+  return language ?? preferredLanguage;
 };

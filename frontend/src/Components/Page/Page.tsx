@@ -1,54 +1,44 @@
+import moment from 'moment-timezone';
 import React, { useCallback, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { saveDimensions, useAppValue } from 'App/appStore';
 import AppUpdatedModal from 'App/AppUpdatedModal';
-import ColorImpairedContext from 'App/ColorImpairedContext';
 import ConnectionLostModal from 'App/ConnectionLostModal';
-import AppState from 'App/State/AppState';
 import SignalRListener from 'Components/SignalRListener';
 import AuthenticationRequiredModal from 'FirstRun/AuthenticationRequiredModal';
 import useAppPage from 'Helpers/Hooks/useAppPage';
-import { saveDimensions } from 'Store/Actions/appActions';
-import createDimensionsSelector from 'Store/Selectors/createDimensionsSelector';
-import createSystemStatusSelector from 'Store/Selectors/createSystemStatusSelector';
-import createUISettingsSelector from 'Store/Selectors/createUISettingsSelector';
+import { useUiSettingsValues } from 'Settings/UI/useUiSettings';
+import { useSystemStatusData } from 'System/Status/useSystemStatus';
 import ErrorPage from './ErrorPage';
 import PageHeader from './Header/PageHeader';
 import LoadingPage from './LoadingPage';
 import PageSidebar from './Sidebar/PageSidebar';
-import styles from './Page.css';
+import styles from './Page.module.css';
 
 interface PageProps {
   children: React.ReactNode;
 }
 
 function Page({ children }: PageProps) {
-  const dispatch = useDispatch();
+  const isUpdated = useAppValue('isUpdated');
+  const isDisconnected = useAppValue('isDisconnected');
+  const version = useAppValue('version');
   const { hasError, errors, isPopulated, isLocalStorageSupported } =
     useAppPage();
   const [isUpdatedModalOpen, setIsUpdatedModalOpen] = useState(false);
   const [isConnectionLostModalOpen, setIsConnectionLostModalOpen] =
     useState(false);
 
-  const { enableColorImpairedMode } = useSelector(createUISettingsSelector());
-  const { isSmallScreen } = useSelector(createDimensionsSelector());
-  const { authentication } = useSelector(createSystemStatusSelector());
-  const authenticationEnabled = authentication !== 'none';
-  const { isSidebarVisible, isUpdated, isDisconnected, version } = useSelector(
-    (state: AppState) => state.app
-  );
+  const { timeZone } = useUiSettingsValues();
+  const { authentication } = useSystemStatusData();
 
-  const handleUpdatedModalClose = useCallback(() => {
-    setIsUpdatedModalOpen(false);
-  }, []);
+  const authenticationEnabled = authentication !== 'none';
 
   const handleResize = useCallback(() => {
-    dispatch(
-      saveDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      })
-    );
-  }, [dispatch]);
+    saveDimensions({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+  }, []);
 
   useEffect(() => {
     window.addEventListener('resize', handleResize);
@@ -70,6 +60,17 @@ function Page({ children }: PageProps) {
     }
   }, [isUpdated]);
 
+  useEffect(() => {
+    try {
+      moment.tz.setDefault(timeZone);
+    } catch (error) {
+      console.error(
+        `Error converting to timezone ${timeZone}. Using system timezone.`,
+        error
+      );
+    }
+  }, [timeZone]);
+
   if (hasError || !isLocalStorageSupported) {
     return (
       <ErrorPage
@@ -85,31 +86,23 @@ function Page({ children }: PageProps) {
   }
 
   return (
-    <ColorImpairedContext.Provider value={enableColorImpairedMode}>
-      <div className={styles.page}>
-        <SignalRListener />
+    <div className={styles.page}>
+      <SignalRListener />
 
-        <PageHeader />
+      <PageHeader />
 
-        <div className={styles.main}>
-          <PageSidebar
-            isSmallScreen={isSmallScreen}
-            isSidebarVisible={isSidebarVisible}
-          />
+      <div className={styles.main}>
+        <PageSidebar />
 
-          {children}
-        </div>
-
-        <AppUpdatedModal
-          isOpen={isUpdatedModalOpen}
-          onModalClose={handleUpdatedModalClose}
-        />
-
-        <ConnectionLostModal isOpen={isConnectionLostModalOpen} />
-
-        <AuthenticationRequiredModal isOpen={!authenticationEnabled} />
+        {children}
       </div>
-    </ColorImpairedContext.Provider>
+
+      <AppUpdatedModal isOpen={isUpdatedModalOpen} />
+
+      <ConnectionLostModal isOpen={isConnectionLostModalOpen} />
+
+      <AuthenticationRequiredModal isOpen={!authenticationEnabled} />
+    </div>
   );
 }
 

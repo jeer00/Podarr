@@ -1,36 +1,38 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router';
 import {
   setAddSeriesOption,
   useAddSeriesOption,
 } from 'AddSeries/addSeriesOptionsStore';
-import { SelectProvider } from 'App/SelectContext';
-import AppState from 'App/State/AppState';
+import { SelectProvider } from 'App/Select/SelectContext';
 import Alert from 'Components/Alert';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import PageContent from 'Components/Page/PageContent';
 import PageContentBody from 'Components/Page/PageContentBody';
+import PageHeading from 'Components/Page/PageHeading';
 import { kinds } from 'Helpers/Props';
-import { clearImportSeries } from 'Store/Actions/importSeriesActions';
-import { fetchRootFolders } from 'Store/Actions/rootFolderActions';
+import useRootFolders, { useRootFolder } from 'RootFolder/useRootFolders';
+import { useQualityProfilesData } from 'Settings/Profiles/Quality/useQualityProfiles';
 import translate from 'Utilities/String/translate';
 import ImportSeriesFooter from './ImportSeriesFooter';
-import ImportSeriesTable from './ImportSeriesTable';
+import ImportSeriesList from './ImportSeriesList';
+import { clearImportSeries } from './importSeriesStore';
+import styles from './ImportSeries.module.css';
 
 function ImportSeries() {
-  const dispatch = useDispatch();
-  const { rootFolderId: rootFolderIdString } = useParams<{
+  const { rootFolderId: rootFolderIdString = '' } = useParams<{
     rootFolderId: string;
   }>();
   const rootFolderId = parseInt(rootFolderIdString);
 
   const {
     isFetching: rootFoldersFetching,
-    isPopulated: rootFoldersPopulated,
+    isFetched: rootFoldersFetched,
     error: rootFoldersError,
-    items: rootFolders,
-  } = useSelector((state: AppState) => state.rootFolders);
+    data: rootFolders,
+  } = useRootFolders();
+
+  useRootFolder(rootFolderId, false);
 
   const { path, unmappedFolders } = useMemo(() => {
     const rootFolder = rootFolders.find((r) => r.id === rootFolderId);
@@ -47,9 +49,7 @@ function ImportSeries() {
     };
   }, [rootFolders, rootFolderId]);
 
-  const qualityProfiles = useSelector(
-    (state: AppState) => state.settings.qualityProfiles.items
-  );
+  const qualityProfiles = useQualityProfilesData();
 
   const defaultQualityProfileId = useAddSeriesOption('qualityProfileId');
 
@@ -65,12 +65,10 @@ function ImportSeries() {
   }, [unmappedFolders]);
 
   useEffect(() => {
-    dispatch(fetchRootFolders({ id: rootFolderId, timeout: false }));
-
     return () => {
-      dispatch(clearImportSeries());
+      clearImportSeries();
     };
-  }, [rootFolderId, dispatch]);
+  }, [rootFolderId]);
 
   useEffect(() => {
     if (
@@ -79,44 +77,47 @@ function ImportSeries() {
     ) {
       setAddSeriesOption('qualityProfileId', qualityProfiles[0].id);
     }
-  }, [defaultQualityProfileId, qualityProfiles, dispatch]);
+  }, [defaultQualityProfileId, qualityProfiles]);
 
   return (
     <SelectProvider items={items}>
       <PageContent title={translate('ImportSeries')}>
         <PageContentBody ref={scrollerRef}>
-          {rootFoldersFetching ? <LoadingIndicator /> : null}
-
-          {!rootFoldersFetching && !!rootFoldersError ? (
-            <Alert kind={kinds.DANGER}>
-              {translate('RootFoldersLoadError')}
-            </Alert>
-          ) : null}
-
-          {!rootFoldersError &&
-          !rootFoldersFetching &&
-          rootFoldersPopulated &&
-          !unmappedFolders.length ? (
-            <Alert kind={kinds.INFO}>
-              {translate('AllSeriesInRootFolderHaveBeenImported', { path })}
-            </Alert>
-          ) : null}
-
-          {!rootFoldersError &&
-          !rootFoldersFetching &&
-          rootFoldersPopulated &&
-          !!unmappedFolders.length &&
-          scrollerRef.current ? (
-            <ImportSeriesTable
-              unmappedFolders={unmappedFolders}
-              scrollerRef={scrollerRef}
+          <div className={styles.content}>
+            <PageHeading
+              scope={translate('Media')}
+              title={translate('ImportSeries')}
             />
-          ) : null}
+
+            {rootFoldersFetching && !rootFoldersFetched ? (
+              <LoadingIndicator />
+            ) : null}
+
+            {!rootFoldersFetching && !!rootFoldersError ? (
+              <Alert kind={kinds.DANGER}>
+                {translate('RootFoldersLoadError')}
+              </Alert>
+            ) : null}
+
+            {!rootFoldersError &&
+            !rootFoldersFetching &&
+            rootFoldersFetched &&
+            !unmappedFolders.length ? (
+              <Alert kind={kinds.INFO}>
+                {translate('AllSeriesInRootFolderHaveBeenImported', { path })}
+              </Alert>
+            ) : null}
+
+            {!rootFoldersError &&
+            rootFoldersFetched &&
+            !!unmappedFolders.length &&
+            scrollerRef.current ? (
+              <ImportSeriesList items={items} scrollerRef={scrollerRef} />
+            ) : null}
+          </div>
         </PageContentBody>
 
-        {!rootFoldersError &&
-        !rootFoldersFetching &&
-        !!unmappedFolders.length ? (
+        {!rootFoldersError && rootFoldersFetched && !!unmappedFolders.length ? (
           <ImportSeriesFooter />
         ) : null}
       </PageContent>

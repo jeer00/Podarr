@@ -1,9 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import AppState from 'App/State/AppState';
-import FormGroup from 'Components/Form/FormGroup';
-import FormInputGroup from 'Components/Form/FormInputGroup';
+import FormInput from 'Components/Form/FormInput';
+import FormInputHelpText from 'Components/Form/FormInputHelpText';
 import FormLabel from 'Components/Form/FormLabel';
+import FormRow from 'Components/Form/FormRow';
 import Icon from 'Components/Icon';
 import Button from 'Components/Link/Button';
 import InlineMarkdown from 'Components/Markdown/InlineMarkdown';
@@ -13,12 +12,15 @@ import ModalFooter from 'Components/Modal/ModalFooter';
 import ModalHeader from 'Components/Modal/ModalHeader';
 import { icons, inputTypes, kinds } from 'Helpers/Props';
 import { Statistics } from 'Series/Series';
-import useSeries from 'Series/useSeries';
-import { deleteSeries, setDeleteOption } from 'Store/Actions/seriesActions';
+import {
+  setSeriesDeleteOptions,
+  useSeriesDeleteOptions,
+} from 'Series/seriesOptionsStore';
+import { useDeleteSeries, useSingleSeries } from 'Series/useSeries';
 import { CheckInputChanged } from 'typings/inputs';
 import formatBytes from 'Utilities/Number/formatBytes';
 import translate from 'Utilities/String/translate';
-import styles from './DeleteSeriesModalContent.css';
+import styles from './DeleteSeriesModalContent.module.css';
 
 export interface DeleteSeriesModalContentProps {
   seriesId: number;
@@ -29,15 +31,20 @@ function DeleteSeriesModalContent({
   seriesId,
   onModalClose,
 }: DeleteSeriesModalContentProps) {
-  const dispatch = useDispatch();
-  const { title, path, statistics = {} as Statistics } = useSeries(seriesId)!;
-  const { addImportListExclusion } = useSelector(
-    (state: AppState) => state.series.deleteOptions
-  );
+  const {
+    title,
+    path,
+    statistics = {} as Statistics,
+  } = useSingleSeries(seriesId)!;
 
+  const { addImportListExclusion } = useSeriesDeleteOptions();
   const { episodeFileCount = 0, sizeOnDisk = 0 } = statistics;
-
   const [deleteFiles, setDeleteFiles] = useState(false);
+
+  const { deleteSeries } = useDeleteSeries(seriesId, {
+    deleteFiles,
+    addImportListExclusion,
+  });
 
   const handleDeleteFilesChange = useCallback(
     ({ value }: CheckInputChanged) => {
@@ -47,18 +54,16 @@ function DeleteSeriesModalContent({
   );
 
   const handleDeleteSeriesConfirmed = useCallback(() => {
-    dispatch(
-      deleteSeries({ id: seriesId, deleteFiles, addImportListExclusion })
-    );
+    deleteSeries();
 
     onModalClose();
-  }, [seriesId, addImportListExclusion, deleteFiles, dispatch, onModalClose]);
+  }, [deleteSeries, onModalClose]);
 
   const handleDeleteOptionChange = useCallback(
     ({ name, value }: CheckInputChanged) => {
-      dispatch(setDeleteOption({ [name]: value }));
+      setSeriesDeleteOptions({ [name]: value });
     },
-    [dispatch]
+    []
   );
 
   return (
@@ -74,38 +79,42 @@ function DeleteSeriesModalContent({
           {path}
         </div>
 
-        <FormGroup>
+        <FormRow>
           <FormLabel>{translate('AddListExclusion')}</FormLabel>
 
-          <FormInputGroup
+          <FormInputHelpText
+            text={translate('AddListExclusionSingleSeriesHelpText')}
+          />
+          <FormInput
             type={inputTypes.CHECK}
             name="addImportListExclusion"
             value={addImportListExclusion}
-            helpText={translate('AddListExclusionSeriesHelpText')}
             onChange={handleDeleteOptionChange}
           />
-        </FormGroup>
+        </FormRow>
 
-        <FormGroup>
+        <FormRow>
           <FormLabel>
             {episodeFileCount === 0
               ? translate('DeleteSeriesFolder')
               : translate('DeleteEpisodesFiles', { episodeFileCount })}
           </FormLabel>
 
-          <FormInputGroup
-            type={inputTypes.CHECK}
-            name="deleteFiles"
-            value={deleteFiles}
-            helpText={
+          <FormInputHelpText
+            text={
               episodeFileCount === 0
                 ? translate('DeleteSeriesFolderHelpText')
                 : translate('DeleteEpisodesFilesHelpText')
             }
+          />
+          <FormInput
+            type={inputTypes.CHECK}
+            name="deleteFiles"
+            value={deleteFiles}
             kind={kinds.DANGER}
             onChange={handleDeleteFilesChange}
           />
-        </FormGroup>
+        </FormRow>
 
         {deleteFiles ? (
           <div className={styles.deleteFilesMessage}>

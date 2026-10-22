@@ -1,92 +1,68 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { QualityProfilesAppState } from 'App/State/SettingsAppState';
-import Card from 'Components/Card';
-import FieldSet from 'Components/FieldSet';
-import Icon from 'Components/Icon';
+import React, { useCallback, useState } from 'react';
 import PageSectionContent from 'Components/Page/PageSectionContent';
-import { icons } from 'Helpers/Props';
-import {
-  cloneQualityProfile,
-  fetchQualityProfiles,
-} from 'Store/Actions/settingsActions';
-import createSortedSectionSelector from 'Store/Selectors/createSortedSectionSelector';
-import QualityProfileModel from 'typings/QualityProfile';
+import AddCard from 'Components/SettingsCard/AddCard';
+import settingsCardStyles from 'Components/SettingsCard/SettingsCard.module.css';
 import sortByProp from 'Utilities/Array/sortByProp';
 import translate from 'Utilities/String/translate';
 import EditQualityProfileModal from './EditQualityProfileModal';
 import QualityProfile from './QualityProfile';
-import styles from './QualityProfiles.css';
+import { useQualityProfiles } from './useQualityProfiles';
 
 function QualityProfiles() {
-  const dispatch = useDispatch();
+  const { data, error, isFetching, isFetched } = useQualityProfiles();
 
-  const { error, isFetching, isPopulated, isDeleting, items } = useSelector(
-    createSortedSectionSelector<QualityProfileModel, QualityProfilesAppState>(
-      'settings.qualityProfiles',
-      sortByProp('name')
-    )
-  ) as QualityProfilesAppState;
+  // Sort the data by name
+  const sortedItems = data ? [...data].sort(sortByProp('name')) : [];
 
   const [isQualityProfileModalOpen, setIsQualityProfileModalOpen] =
     useState(false);
+  const [cloneProfileId, setCloneProfileId] = useState<number | null>(null);
 
-  const handleEditQualityProfilePress = useCallback(() => {
+  const handleAddQualityProfilePress = useCallback(() => {
+    setCloneProfileId(null);
     setIsQualityProfileModalOpen(true);
   }, []);
 
-  const handleEditQualityProfileClosePress = useCallback(() => {
+  const handleAddQualityProfileClosePress = useCallback(() => {
+    setCloneProfileId(null);
     setIsQualityProfileModalOpen(false);
   }, []);
 
-  const handleCloneQualityProfilePress = useCallback(
-    (id: number) => {
-      dispatch(cloneQualityProfile({ id }));
-      setIsQualityProfileModalOpen(true);
-    },
-    [dispatch]
-  );
-
-  useEffect(() => {
-    dispatch(fetchQualityProfiles());
-  }, [dispatch]);
+  const handleCloneQualityProfilePress = useCallback((id: number) => {
+    setCloneProfileId(id);
+    setIsQualityProfileModalOpen(true);
+  }, []);
 
   return (
-    <FieldSet legend={translate('QualityProfiles')}>
-      <PageSectionContent
-        errorMessage={translate('QualityProfilesLoadError')}
-        error={error}
-        isFetching={isFetching}
-        isPopulated={isPopulated}
-      >
-        <div className={styles.qualityProfiles}>
-          {items.map((item) => {
-            return (
-              <QualityProfile
-                key={item.id}
-                {...item}
-                isDeleting={isDeleting}
-                onCloneQualityProfilePress={handleCloneQualityProfilePress}
-              />
-            );
-          })}
+    <PageSectionContent
+      errorMessage={translate('QualityProfilesLoadError')}
+      error={error}
+      isFetching={isFetching}
+      isPopulated={isFetched}
+    >
+      <div className={settingsCardStyles.grid}>
+        {sortedItems.map((item) => {
+          return (
+            <QualityProfile
+              key={item.id}
+              {...item}
+              onCloneQualityProfilePress={handleCloneQualityProfilePress}
+            />
+          );
+        })}
 
-          <Card
-            className={styles.addQualityProfile}
-            onPress={handleEditQualityProfilePress}
-          >
-            <div className={styles.center}>
-              <Icon name={icons.ADD} size={45} />
-            </div>
-          </Card>
-        </div>
-
-        <EditQualityProfileModal
-          isOpen={isQualityProfileModalOpen}
-          onModalClose={handleEditQualityProfileClosePress}
+        <AddCard
+          label={translate('AddQualityProfile')}
+          onPress={handleAddQualityProfilePress}
         />
-      </PageSectionContent>
-    </FieldSet>
+      </div>
+
+      <EditQualityProfileModal
+        isOpen={isQualityProfileModalOpen}
+        cloneId={cloneProfileId ?? undefined}
+        onModalClose={handleAddQualityProfileClosePress}
+      />
+    </PageSectionContent>
   );
 }
 

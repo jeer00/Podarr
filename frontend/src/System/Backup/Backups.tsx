@@ -1,25 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import AppState from 'App/State/AppState';
-import * as commandNames from 'Commands/commandNames';
+import CommandNames from 'Commands/CommandNames';
+import { useCommandExecuting, useExecuteCommand } from 'Commands/useCommands';
 import Alert from 'Components/Alert';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import PageContent from 'Components/Page/PageContent';
 import PageContentBody from 'Components/Page/PageContentBody';
+import PageHeading from 'Components/Page/PageHeading';
 import PageToolbar from 'Components/Page/Toolbar/PageToolbar';
-import PageToolbarButton from 'Components/Page/Toolbar/PageToolbarButton';
-import PageToolbarSection from 'Components/Page/Toolbar/PageToolbarSection';
+import ToolbarItem from 'Components/Page/Toolbar/ToolbarItem';
 import Column from 'Components/Table/Column';
 import Table from 'Components/Table/Table';
 import TableBody from 'Components/Table/TableBody';
 import usePrevious from 'Helpers/Hooks/usePrevious';
 import { icons, kinds } from 'Helpers/Props';
-import { executeCommand } from 'Store/Actions/commandActions';
-import { fetchBackups } from 'Store/Actions/systemActions';
-import createCommandExecutingSelector from 'Store/Selectors/createCommandExecutingSelector';
 import translate from 'Utilities/String/translate';
 import BackupRow from './BackupRow';
 import RestoreBackupModal from './RestoreBackupModal';
+import useBackups from './useBackups';
 
 const columns: Column[] = [
   {
@@ -50,29 +47,22 @@ const columns: Column[] = [
 ];
 
 function Backups() {
-  const dispatch = useDispatch();
+  const executeCommand = useExecuteCommand();
+  const { data: items, isLoading: isFetching, error, refetch } = useBackups();
 
-  const { isFetching, isPopulated, error, items } = useSelector(
-    (state: AppState) => state.system.backups
-  );
-
-  const isBackupExecuting = useSelector(
-    createCommandExecutingSelector(commandNames.BACKUP)
-  );
+  const isBackupExecuting = useCommandExecuting(CommandNames.Backup);
 
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
 
   const wasBackupExecuting = usePrevious(isBackupExecuting);
-  const hasBackups = isPopulated && !!items.length;
-  const noBackups = isPopulated && !items.length;
+  const hasBackups = !!items.length;
+  const noBackups = !items.length && !isFetching && !error;
 
   const handleBackupPress = useCallback(() => {
-    dispatch(
-      executeCommand({
-        name: commandNames.BACKUP,
-      })
-    );
-  }, [dispatch]);
+    executeCommand({
+      name: CommandNames.Backup,
+    });
+  }, [executeCommand]);
 
   const handleRestorePress = useCallback(() => {
     setIsRestoreModalOpen(true);
@@ -83,36 +73,38 @@ function Backups() {
   }, []);
 
   useEffect(() => {
-    dispatch(fetchBackups());
-  }, [dispatch]);
-
-  useEffect(() => {
     if (wasBackupExecuting && !isBackupExecuting) {
-      dispatch(fetchBackups());
+      refetch();
     }
-  }, [isBackupExecuting, wasBackupExecuting, dispatch]);
+  }, [isBackupExecuting, wasBackupExecuting, refetch]);
 
   return (
     <PageContent title={translate('Backups')}>
       <PageToolbar>
-        <PageToolbarSection>
-          <PageToolbarButton
-            label={translate('BackupNow')}
-            iconName={icons.BACKUP}
-            isSpinning={isBackupExecuting}
-            onPress={handleBackupPress}
-          />
+        <ToolbarItem
+          id="backup-now"
+          priority={1}
+          groupId="left"
+          label={translate('BackupNow')}
+          iconName={icons.BACKUP}
+          isSpinning={isBackupExecuting}
+          onPress={handleBackupPress}
+        />
 
-          <PageToolbarButton
-            label={translate('RestoreBackup')}
-            iconName={icons.RESTORE}
-            onPress={handleRestorePress}
-          />
-        </PageToolbarSection>
+        <ToolbarItem
+          id="restore-backup"
+          priority={1}
+          groupId="left"
+          label={translate('RestoreBackup')}
+          iconName={icons.RESTORE}
+          onPress={handleRestorePress}
+        />
       </PageToolbar>
 
       <PageContentBody>
-        {isFetching && !isPopulated ? <LoadingIndicator /> : null}
+        <PageHeading scope={translate('System')} title={translate('Backups')} />
+
+        {isFetching ? <LoadingIndicator /> : null}
 
         {!isFetching && !!error ? (
           <Alert kind={kinds.DANGER}>{translate('BackupsLoadError')}</Alert>

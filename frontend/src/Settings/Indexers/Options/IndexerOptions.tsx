@@ -1,29 +1,21 @@
 import React, { useCallback, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import Alert from 'Components/Alert';
 import FieldSet from 'Components/FieldSet';
 import Form from 'Components/Form/Form';
-import FormGroup from 'Components/Form/FormGroup';
-import FormInputGroup from 'Components/Form/FormInputGroup';
+import FormInput from 'Components/Form/FormInput';
+import FormInputHelpText from 'Components/Form/FormInputHelpText';
 import FormLabel from 'Components/Form/FormLabel';
+import FormRow from 'Components/Form/FormRow';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
-import useShowAdvancedSettings from 'Helpers/Hooks/useShowAdvancedSettings';
 import { inputTypes, kinds } from 'Helpers/Props';
-import { clearPendingChanges } from 'Store/Actions/baseActions';
-import {
-  fetchIndexerOptions,
-  saveIndexerOptions,
-  setIndexerOptionsValue,
-} from 'Store/Actions/settingsActions';
-import createSettingsSectionSelector from 'Store/Selectors/createSettingsSectionSelector';
+import { useShowAdvancedSettings } from 'Settings/advancedSettingsStore';
 import { InputChanged } from 'typings/inputs';
 import {
   OnChildStateChange,
   SetChildSave,
 } from 'typings/Settings/SettingsState';
 import translate from 'Utilities/String/translate';
-
-const SECTION = 'indexerOptions';
+import { useManageIndexerSettings } from './useIndexerSettings';
 
 interface IndexerOptionsProps {
   setChildSave: SetChildSave;
@@ -34,31 +26,31 @@ function IndexerOptions({
   setChildSave,
   onChildStateChange,
 }: IndexerOptionsProps) {
-  const dispatch = useDispatch();
   const {
     isFetching,
-    isPopulated,
+    isFetched,
     isSaving,
     error,
     settings,
     hasSettings,
     hasPendingChanges,
-  } = useSelector(createSettingsSectionSelector(SECTION));
+    saveSettings,
+    updateSetting,
+  } = useManageIndexerSettings();
 
   const showAdvancedSettings = useShowAdvancedSettings();
 
   const handleInputChange = useCallback(
-    (change: InputChanged) => {
-      // @ts-expect-error - actions aren't typed
-      dispatch(setIndexerOptionsValue(change));
+    ({ name, value }: InputChanged) => {
+      // @ts-expect-error - InputChanged name/value are not typed as keyof IndexerSettingsModel
+      updateSetting(name, value);
     },
-    [dispatch]
+    [updateSetting]
   );
 
   useEffect(() => {
-    dispatch(fetchIndexerOptions());
-    setChildSave(() => dispatch(saveIndexerOptions()));
-  }, [dispatch, setChildSave]);
+    setChildSave(saveSettings);
+  }, [saveSettings, setChildSave]);
 
   useEffect(() => {
     onChildStateChange({
@@ -67,82 +59,78 @@ function IndexerOptions({
     });
   }, [hasPendingChanges, isSaving, onChildStateChange]);
 
-  useEffect(() => {
-    return () => {
-      dispatch(clearPendingChanges({ section: `settings.${SECTION}` }));
-    };
-  }, [dispatch]);
-
   return (
-    <FieldSet legend={translate('Options')}>
+    <FieldSet
+      legend={translate('Options')}
+      caption={translate('IndexerOptionsCaption')}
+    >
       {isFetching ? <LoadingIndicator /> : null}
-
       {!isFetching && error ? (
         <Alert kind={kinds.DANGER}>
           {translate('IndexerOptionsLoadError')}
         </Alert>
       ) : null}
-
-      {hasSettings && isPopulated && !error ? (
+      {hasSettings && isFetched && !error ? (
         <Form>
-          <FormGroup>
+          <FormRow>
             <FormLabel>{translate('MinimumAge')}</FormLabel>
-
-            <FormInputGroup
+            <FormInputHelpText text={translate('MinimumAgeHelpText')} />
+            <FormInput
               type={inputTypes.NUMBER}
               name="minimumAge"
               min={0}
               unit="minutes"
-              helpText={translate('MinimumAgeHelpText')}
               onChange={handleInputChange}
               {...settings.minimumAge}
             />
-          </FormGroup>
+          </FormRow>
 
-          <FormGroup>
+          <FormRow>
             <FormLabel>{translate('Retention')}</FormLabel>
-
-            <FormInputGroup
+            <FormInputHelpText text={translate('RetentionHelpText')} />
+            <FormInput
               type={inputTypes.NUMBER}
               name="retention"
               min={0}
               unit="days"
-              helpText={translate('RetentionHelpText')}
               onChange={handleInputChange}
               {...settings.retention}
             />
-          </FormGroup>
+          </FormRow>
 
-          <FormGroup>
+          <FormRow>
             <FormLabel>{translate('MaximumSize')}</FormLabel>
-
-            <FormInputGroup
+            <FormInputHelpText text={translate('MaximumSizeHelpText')} />
+            <FormInput
               type={inputTypes.NUMBER}
               name="maximumSize"
               min={0}
               unit="MB"
-              helpText={translate('MaximumSizeHelpText')}
               onChange={handleInputChange}
               {...settings.maximumSize}
             />
-          </FormGroup>
+          </FormRow>
 
-          <FormGroup advancedSettings={showAdvancedSettings} isAdvanced={true}>
+          <FormRow advancedSettings={showAdvancedSettings} isAdvanced={true}>
             <FormLabel>{translate('RssSyncInterval')}</FormLabel>
-
-            <FormInputGroup
+            <FormInputHelpText
+              text={translate('RssSyncIntervalHelpText')}
+              link="https://wiki.servarr.com/sonarr/faq#how-does-sonarr-find-episodes"
+            />
+            <FormInputHelpText
+              text={translate('RssSyncIntervalHelpTextWarning')}
+              isWarning={true}
+            />
+            <FormInput
               type={inputTypes.NUMBER}
               name="rssSyncInterval"
               min={0}
               max={120}
               unit="minutes"
-              helpText={translate('RssSyncIntervalHelpText')}
-              helpTextWarning={translate('RssSyncIntervalHelpTextWarning')}
-              helpLink="https://wiki.servarr.com/sonarr/faq#how-does-sonarr-find-episodes"
               onChange={handleInputChange}
               {...settings.rssSyncInterval}
             />
-          </FormGroup>
+          </FormRow>
         </Form>
       ) : null}
     </FieldSet>

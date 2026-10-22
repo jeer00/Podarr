@@ -1,31 +1,30 @@
-import { push } from 'connected-react-router';
 import { ExtendedKeyboardEvent } from 'mousetrap';
 import React, {
   FormEvent,
   KeyboardEvent,
   SyntheticEvent,
+  TouchEvent,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import Autosuggest from 'react-autosuggest';
-import { useDispatch, useSelector } from 'react-redux';
-import { createSelector } from 'reselect';
-import { Tag } from 'App/State/TagsAppState';
+import Autosuggest, {
+  RenderSuggestionsContainerParams,
+} from 'react-autosuggest';
+import { useNavigate } from 'react-router-dom';
+import { useDebouncedCallback } from 'use-debounce';
 import Icon from 'Components/Icon';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
-import useDebouncedCallback from 'Helpers/Hooks/useDebouncedCallback';
 import useKeyboardShortcuts from 'Helpers/Hooks/useKeyboardShortcuts';
 import { icons } from 'Helpers/Props';
 import Series from 'Series/Series';
-import createAllSeriesSelector from 'Store/Selectors/createAllSeriesSelector';
-import createDeepEqualSelector from 'Store/Selectors/createDeepEqualSelector';
-import createTagsSelector from 'Store/Selectors/createTagsSelector';
+import useSeries from 'Series/useSeries';
+import { Tag, useTagList } from 'Tags/useTags';
 import translate from 'Utilities/String/translate';
 import SeriesSearchResult from './SeriesSearchResult';
-import styles from './SeriesSearchInput.css';
+import styles from './SeriesSearchInput.module.css';
 
 const ADD_NEW_TYPE = 'addNew';
 
@@ -47,6 +46,7 @@ export interface SuggestedSeries
     | 'sortTitle'
     | 'images'
     | 'alternateTitles'
+    | 'translations'
     | 'tvdbId'
     | 'tvMazeId'
     | 'imdbId'
@@ -70,61 +70,55 @@ interface Section {
   suggestions: SeriesSuggestion[] | AddNewSeriesSuggestion[];
 }
 
-function createUnoptimizedSelector() {
-  return createSelector(
-    createAllSeriesSelector(),
-    createTagsSelector(),
-    (allSeries, allTags) => {
-      return allSeries.map((series): SuggestedSeries => {
-        const {
-          title,
-          titleSlug,
-          sortTitle,
-          images,
-          alternateTitles = [],
-          tvdbId,
-          tvMazeId,
-          imdbId,
-          tmdbId,
-          tags = [],
-        } = series;
+function useSeriesSuggestions(tagList: ReadonlyArray<Tag>) {
+  const { data: allSeries = [] } = useSeries();
 
-        return {
-          title,
-          titleSlug,
-          sortTitle,
-          images,
-          alternateTitles,
-          tvdbId,
-          tvMazeId,
-          imdbId,
-          tmdbId,
-          firstCharacter: title.charAt(0).toLowerCase(),
-          tags: tags.reduce<Tag[]>((acc, id) => {
-            const matchingTag = allTags.find((tag) => tag.id === id);
+  return useMemo(() => {
+    return allSeries.map((series): SuggestedSeries => {
+      const {
+        title,
+        titleSlug,
+        sortTitle,
+        images,
+        alternateTitles = [],
+        translations = [],
+        tvdbId,
+        tvMazeId,
+        imdbId,
+        tmdbId,
+        tags = [],
+      } = series;
 
-            if (matchingTag) {
-              acc.push(matchingTag);
-            }
+      return {
+        title,
+        titleSlug,
+        sortTitle,
+        images,
+        alternateTitles,
+        translations,
+        tvdbId,
+        tvMazeId,
+        imdbId,
+        tmdbId,
+        firstCharacter: title.charAt(0).toLowerCase(),
+        tags: tags.reduce<Tag[]>((acc, id) => {
+          const matchingTag = tagList.find((tag) => tag.id === id);
 
-            return acc;
-          }, []),
-        };
-      });
-    }
-  );
-}
+          if (matchingTag) {
+            acc.push(matchingTag);
+          }
 
-function createSeriesSelector() {
-  return createDeepEqualSelector(
-    createUnoptimizedSelector(),
-    (series) => series
-  );
+          return acc;
+        }, []),
+      };
+    });
+  }, [allSeries, tagList]);
 }
 
 function SeriesSearchInput() {
-  const series = useSelector(createSeriesSelector());
-  const dispatch = useDispatch();
+  const tagList = useTagList();
+  const series = useSeriesSuggestions(tagList);
+  const navigate = useNavigate();
   const { bindShortcut, unbindShortcut } = useKeyboardShortcuts();
 
   const [value, setValue] = useState('');
@@ -173,20 +167,14 @@ function SeriesSearchInput() {
         requestValue.current = null;
         setRequestLoading(false);
         isLoading.current = false;
-        // setLoading(false);
       } else {
         setSuggestions(suggestions);
         setRequestLoading(true);
 
-        const payload = {
-          value: requestValue,
-          series,
-        };
-
-        worker.current?.postMessage(payload);
+        worker.current?.postMessage({ value: requestValue.current });
       }
     },
-    [series]
+    []
   );
 
   const requestSuggestions = useDebouncedCallback((value: string) => {
@@ -198,19 +186,13 @@ function SeriesSearchInput() {
     setRequestLoading(true);
 
     if (!requestLoading) {
-      const payload = {
-        value,
-        series,
-      };
-
-      worker.current?.postMessage(payload);
+      worker.current?.postMessage({ value });
     }
   }, 250);
 
   const reset = useCallback(() => {
     setValue('');
     setSuggestions([]);
-    // setLoading(false);
     isLoading.current = false;
   }, []);
 
@@ -238,6 +220,21 @@ function SeriesSearchInput() {
       </div>
     );
   }, []);
+
+  const renderSuggestionsContainer = useCallback(
+    ({ containerProps, children }: RenderSuggestionsContainerParams) => {
+      const { key, ...otherContainerProps } = containerProps;
+
+      return (
+        <div className={children ? styles.dropdown : undefined}>
+          <div key={key} {...otherContainerProps}>
+            {children}
+          </div>
+        </div>
+      );
+    },
+    []
+  );
 
   const getSuggestionValue = useCallback(({ title }: { title: string }) => {
     return title;
@@ -300,15 +297,15 @@ function SeriesSearchInput() {
         return;
       }
 
+      if (!inputRef.current?.value) {
+        return;
+      }
+
       const { highlightedSectionIndex, highlightedSuggestionIndex } =
         autosuggestRef.current.state;
 
       if (!suggestions.length || highlightedSectionIndex) {
-        dispatch(
-          push(
-            `${window.Sonarr.urlBase}/add/new?term=${encodeURIComponent(value)}`
-          )
-        );
+        navigate(`/add/new?term=${encodeURIComponent(value)}`);
 
         inputRef.current?.blur();
         reset();
@@ -324,21 +321,28 @@ function SeriesSearchInput() {
           ? suggestions[0]
           : suggestions[highlightedSuggestionIndex];
 
-      dispatch(
-        push(
-          `${window.Sonarr.urlBase}/series/${selectedSuggestion.item.titleSlug}`
-        )
-      );
+      navigate(`/series/${selectedSuggestion.item.titleSlug}`);
 
       inputRef.current?.blur();
       reset();
     },
-    [value, suggestions, dispatch, reset]
+    [value, suggestions, navigate, reset]
   );
 
   const handleBlur = useCallback(() => {
     reset();
   }, [reset]);
+
+  const handleTouchEnd = useCallback((event: TouchEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+
+    if (!event.cancelable || document.activeElement === input) {
+      return;
+    }
+
+    event.preventDefault();
+    input.focus({ preventScroll: true });
+  }, []);
 
   const handleSuggestionsFetchRequested = useCallback(
     ({ value }: { value: string }) => {
@@ -360,19 +364,13 @@ function SeriesSearchInput() {
       { suggestion }: { suggestion: SeriesSuggestion | AddNewSeriesSuggestion }
     ) => {
       if ('type' in suggestion) {
-        dispatch(
-          push(
-            `${window.Sonarr.urlBase}/add/new?term=${encodeURIComponent(value)}`
-          )
-        );
+        navigate(`/add/new?term=${encodeURIComponent(value)}`);
       } else {
         setValue('');
-        dispatch(
-          push(`${window.Sonarr.urlBase}/series/${suggestion.item.titleSlug}`)
-        );
+        navigate(`/series/${suggestion.item.titleSlug}`);
       }
     },
-    [value, dispatch]
+    [value, navigate]
   );
 
   const inputProps = {
@@ -386,11 +384,11 @@ function SeriesSearchInput() {
     onChange: handleChange,
     onKeyDown: handleKeyDown,
     onBlur: handleBlur,
+    onTouchEnd: handleTouchEnd,
   };
 
   const theme = {
     container: styles.container,
-    containerOpen: styles.containerOpen,
     suggestionsContainer: styles.seriesContainer,
     suggestionsList: styles.list,
     suggestion: styles.listItem,
@@ -398,7 +396,9 @@ function SeriesSearchInput() {
   };
 
   useEffect(() => {
-    worker.current = new Worker(new URL('./fuse.worker.ts', import.meta.url));
+    worker.current = new Worker(new URL('./fuse.worker.ts', import.meta.url), {
+      type: 'module',
+    });
 
     return () => {
       if (worker.current) {
@@ -407,6 +407,10 @@ function SeriesSearchInput() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    worker.current?.postMessage({ series });
+  }, [series]);
 
   useEffect(() => {
     worker.current?.addEventListener(
@@ -436,23 +440,26 @@ function SeriesSearchInput() {
 
   return (
     <div className={styles.wrapper}>
-      <Icon name={icons.SEARCH} />
+      <div className={styles.inputWrapper}>
+        <Icon className={styles.searchIcon} name={icons.SEARCH} />
 
-      <Autosuggest
-        ref={autosuggestRef}
-        inputProps={inputProps}
-        theme={theme}
-        focusInputOnSuggestionClick={false}
-        multiSection={true}
-        suggestions={suggestionGroups}
-        getSectionSuggestions={getSectionSuggestions}
-        renderSectionTitle={renderSectionTitle}
-        getSuggestionValue={getSuggestionValue}
-        renderSuggestion={renderSuggestion}
-        onSuggestionSelected={handleSuggestionSelected}
-        onSuggestionsFetchRequested={handleSuggestionsFetchRequested}
-        onSuggestionsClearRequested={handleSuggestionsClearRequested}
-      />
+        <Autosuggest
+          ref={autosuggestRef}
+          inputProps={inputProps}
+          theme={theme}
+          focusInputOnSuggestionClick={false}
+          multiSection={true}
+          suggestions={suggestionGroups}
+          getSectionSuggestions={getSectionSuggestions}
+          renderSectionTitle={renderSectionTitle}
+          renderSuggestionsContainer={renderSuggestionsContainer}
+          getSuggestionValue={getSuggestionValue}
+          renderSuggestion={renderSuggestion}
+          onSuggestionSelected={handleSuggestionSelected}
+          onSuggestionsFetchRequested={handleSuggestionsFetchRequested}
+          onSuggestionsClearRequested={handleSuggestionsClearRequested}
+        />
+      </div>
     </div>
   );
 }

@@ -62,6 +62,7 @@ namespace NzbDrone.Core.Datastore
 
             Mapper.Entity<RootFolder>("RootFolders").RegisterModel()
                   .Ignore(r => r.Accessible)
+                  .Ignore(r => r.IsEmpty)
                   .Ignore(r => r.FreeSpace)
                   .Ignore(r => r.TotalSpace);
 
@@ -115,7 +116,10 @@ namespace NzbDrone.Core.Datastore
 
             Mapper.Entity<Series>("Series").RegisterModel()
                   .Ignore(s => s.RootFolderPath)
+                  .Ignore(s => s.Translations)
                   .HasOne(s => s.QualityProfile, s => s.QualityProfileId);
+
+            Mapper.Entity<SeriesTranslation>("SeriesTranslations").RegisterModel();
 
             Mapper.Entity<EpisodeFile>("EpisodeFiles").RegisterModel()
                   .HasOne(f => f.Series, f => f.SeriesId)
@@ -141,6 +145,7 @@ namespace NzbDrone.Core.Datastore
             Mapper.Entity<CustomFormat>("CustomFormats").RegisterModel();
 
             Mapper.Entity<QualityProfile>("QualityProfiles").RegisterModel();
+            Mapper.Entity<QualityProfileQualityRank>("QualityProfileQualityRanks").RegisterModel();
             Mapper.Entity<Log>("Logs").RegisterModel();
             Mapper.Entity<NamingConfig>("NamingConfig").RegisterModel();
             Mapper.Entity<Blocklist>("Blocklist").RegisterModel();
