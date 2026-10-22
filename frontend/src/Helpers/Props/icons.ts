@@ -80,6 +80,7 @@ import {
   Pause,
   Play,
   Plus,
+  Podcast,
   Power,
   Radio,
   RefreshCcw,
@@ -193,6 +194,8 @@ export const PARENT = CornerLeftUp;
 export const PARSE = Calculator;
 export const PAUSED = Pause;
 export const PENDING = Clock;
+export const PLAY = Play;
+export const PODCAST = Podcast;
 export const PREMIERE = CalendarPremiere;
 export const PROFILE = User;
 export const POSTER = LayoutGrid;

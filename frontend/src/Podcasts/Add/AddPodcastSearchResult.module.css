@@ -1,0 +1,84 @@
+.result {
+  margin-bottom: 12px;
+}
+
+.link {
+  composes: link from 'Components/Link/Link.module.css';
+
+  display: flex;
+  padding: 14px;
+  width: 100%;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background-color: var(--paperCard);
+  color: var(--ink);
+  text-align: left;
+  gap: 16px;
+
+  transition: border-color 160ms cubic-bezier(0.25, 1, 0.5, 1);
+
+  &:hover {
+    border-color: var(--hairlineStrong);
+    color: var(--ink);
+    text-decoration: none;
+  }
+}
+
+.artwork {
+  flex: 0 0 96px;
+  overflow: hidden;
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 6px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.alreadyExistsIcon {
+  flex-shrink: 0;
+  color: var(--successColor);
+}
+
+.author {
+  color: var(--inkMuted);
+  font-size: 14px;
+}
+
+.labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.feedUrl {
+  overflow: hidden;
+  color: var(--inkFaint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-family: var(--monoSpaceFontFamily);
+}
+
+@media (--breakpointSmall) {
+  .artwork {
+    flex-basis: 64px;
+    width: 64px;
+    height: 64px;
+  }
+}

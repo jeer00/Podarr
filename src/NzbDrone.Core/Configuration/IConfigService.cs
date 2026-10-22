@@ -26,6 +26,19 @@ namespace NzbDrone.Core.Configuration
         // Media Management
         bool AutoUnmonitorPreviouslyDownloadedEpisodes { get; set; }
         string RecycleBin { get; set; }
+
+        // Podcast feeds served by Podarr
+        bool PodcastFeedsEnabled { get; set; }
+        string PodcastFeedToken { get; set; }
+        string PodcastFeedBaseUrl { get; set; }
+        bool PodcastFeedS3Enabled { get; set; }
+        string PodcastFeedS3Endpoint { get; set; }
+        string PodcastFeedS3Region { get; set; }
+        string PodcastFeedS3Bucket { get; set; }
+        string PodcastFeedS3AccessKey { get; set; }
+        string PodcastFeedS3SecretKey { get; set; }
+        string PodcastFeedS3Prefix { get; set; }
+        string PodcastFeedS3PublicUrl { get; set; }
         int RecycleBinCleanupDays { get; set; }
         ProperDownloadTypes DownloadPropersAndRepacks { get; set; }
         bool CreateEmptySeriesFolders { get; set; }

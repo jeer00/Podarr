@@ -7,18 +7,14 @@ using NzbDrone.Core.Backup;
 using NzbDrone.Core.Caching;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Configuration.Events;
-using NzbDrone.Core.DataAugmentation.Scene;
-using NzbDrone.Core.Download;
 using NzbDrone.Core.HealthCheck;
 using NzbDrone.Core.Housekeeping;
-using NzbDrone.Core.ImportLists;
-using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.MediaFiles.Commands;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
-using NzbDrone.Core.Tv.Commands;
-using NzbDrone.Core.Update.Commands;
+using NzbDrone.Core.Podcasts.Commands;
+using NzbDrone.Core.Podcasts.Tracker.Commands;
 
 namespace NzbDrone.Core.Jobs
 {
@@ -60,6 +56,11 @@ namespace NzbDrone.Core.Jobs
         {
             var scheduledTask = _cache.Find(type.FullName);
 
+            if (scheduledTask == null)
+            {
+                return DateTime.MaxValue;
+            }
+
             return scheduledTask.LastExecution.AddMinutes(scheduledTask.Interval);
         }
 
@@ -70,7 +71,7 @@ namespace NzbDrone.Core.Jobs
                     new ScheduledTask
                     {
                         Interval = 1,
-                        TypeName = typeof(RefreshMonitoredDownloadsCommand).FullName,
+                        TypeName = typeof(ProcessPodcastDownloadsCommand).FullName,
                         Priority = CommandPriority.High
                     },
 
@@ -89,25 +90,13 @@ namespace NzbDrone.Core.Jobs
                     new ScheduledTask
                     {
                         Interval = 6 * 60,
-                        TypeName = typeof(ApplicationUpdateCheckCommand).FullName
-                    },
-
-                    new ScheduledTask
-                    {
-                        Interval = 3 * 60,
-                        TypeName = typeof(UpdateSceneMappingCommand).FullName
-                    },
-
-                    new ScheduledTask
-                    {
-                        Interval = 6 * 60,
                         TypeName = typeof(CheckHealthCommand).FullName
                     },
 
                     new ScheduledTask
                     {
-                        Interval = 12 * 60,
-                        TypeName = typeof(RefreshSeriesCommand).FullName
+                        Interval = 60,
+                        TypeName = typeof(RefreshPodcastCommand).FullName
                     },
 
                     new ScheduledTask
@@ -124,20 +113,8 @@ namespace NzbDrone.Core.Jobs
 
                     new ScheduledTask
                     {
-                        Interval = 5,
-                        TypeName = typeof(ImportListSyncCommand).FullName
-                    },
-
-                    new ScheduledTask
-                    {
                         Interval = GetBackupInterval(),
                         TypeName = typeof(BackupCommand).FullName
-                    },
-
-                    new ScheduledTask
-                    {
-                        Interval = GetRssSyncInterval(),
-                        TypeName = typeof(RssSyncCommand).FullName
                     }
                 };
 
@@ -189,23 +166,6 @@ namespace NzbDrone.Core.Jobs
             return intervalMinutes * 60 * 24;
         }
 
-        private int GetRssSyncInterval()
-        {
-            var interval = _configService.RssSyncInterval;
-
-            if (interval > 0 && interval < 10)
-            {
-                return 10;
-            }
-
-            if (interval < 0)
-            {
-                return 0;
-            }
-
-            return interval;
-        }
-
         public void Handle(CommandExecutedEvent message)
         {
             var scheduledTask = _scheduledTaskRepository.All().SingleOrDefault(c => c.TypeName == message.Command.Body.GetType().FullName);
@@ -228,15 +188,11 @@ namespace NzbDrone.Core.Jobs
 
         public void HandleAsync(ConfigSavedEvent message)
         {
-            var rss = _scheduledTaskRepository.GetDefinition(typeof(RssSyncCommand));
-            rss.Interval = GetRssSyncInterval();
-
             var backup = _scheduledTaskRepository.GetDefinition(typeof(BackupCommand));
             backup.Interval = GetBackupInterval();
 
-            _scheduledTaskRepository.UpdateMany(new List<ScheduledTask> { rss, backup });
+            _scheduledTaskRepository.Update(backup);
 
-            _cache.Find(rss.TypeName).Interval = rss.Interval;
             _cache.Find(backup.TypeName).Interval = backup.Interval;
         }
     }

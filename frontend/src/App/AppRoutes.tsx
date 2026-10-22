@@ -1,99 +1,51 @@
 import React from 'react';
 import { Navigate, Route } from 'react-router-dom';
-import Blocklist from 'Activity/Blocklist/Blocklist';
-import History from 'Activity/History/History';
-import Queue from 'Activity/Queue/Queue';
-import AddNewSeries from 'AddSeries/AddNewSeries/AddNewSeries';
-import ImportSeries from 'AddSeries/ImportSeries/Import/ImportSeries';
-import ImportSeriesSelectFolder from 'AddSeries/ImportSeries/SelectFolder/ImportSeriesSelectFolder';
-import CalendarPage from 'Calendar/CalendarPage';
 import NotFound from 'Components/NotFound';
-import SeriesDetailsPage from 'Series/Details/SeriesDetailsPage';
-import SeriesIndex from 'Series/Index/SeriesIndex';
-import CustomFormatSettingsPage from 'Settings/CustomFormats/CustomFormatSettingsPage';
+import AddPodcast from 'Podcasts/Add/AddPodcast';
+import PodcastDetailsPage from 'Podcasts/Details/PodcastDetailsPage';
+import PodcastIndex from 'Podcasts/Index/PodcastIndex';
 import DownloadClientSettings from 'Settings/DownloadClients/DownloadClientSettings';
+import FeedSettings from 'Settings/Feeds/FeedSettings';
 import GeneralSettings from 'Settings/General/GeneralSettings';
-import ImportListSettings from 'Settings/ImportLists/ImportListSettings';
 import IndexerSettings from 'Settings/Indexers/IndexerSettings';
-import MediaManagement from 'Settings/MediaManagement/MediaManagement';
-import MetadataSettings from 'Settings/Metadata/MetadataSettings';
-import MetadataSourceSettings from 'Settings/MetadataSource/MetadataSourceSettings';
-import NotificationSettings from 'Settings/Notifications/NotificationSettings';
-import Profiles from 'Settings/Profiles/Profiles';
-import Quality from 'Settings/Quality/Quality';
+import RootFolderSettings from 'Settings/RootFolders/RootFolderSettings';
 import Settings from 'Settings/Settings';
-import TagSettings from 'Settings/Tags/TagSettings';
 import UISettings from 'Settings/UI/UISettings';
-import Statistics from 'Statistics/Statistics';
 import Backups from 'System/Backup/Backups';
 import LogsTable from 'System/Events/LogsTable';
 import AppLogFiles from 'System/Logs/App/AppLogFiles';
 import UpdateLogFiles from 'System/Logs/Update/UpdateLogFiles';
 import Status from 'System/Status/Status';
 import Tasks from 'System/Tasks/Tasks';
-import Updates from 'System/Updates/Updates';
-import CutoffUnmet from 'Wanted/CutoffUnmet/CutoffUnmet';
-import Missing from 'Wanted/Missing/Missing';
 
 export function appRouteElements() {
   return (
     <>
-      {/*
-        Home (v5) — TODO: swap to <HomePage /> when the homepage redesign lands.
-        Until then, "/" redirects to SeriesIndex and the sidebar's "Home" nav is hidden.
-      */}
-
-      <Route path="/" element={<Navigate to="/series" replace={true} />} />
+      <Route path="/" element={<Navigate to="/podcasts" replace={true} />} />
 
       {/*
-        Series
+        Podcasts
       */}
 
-      <Route path="/series" element={<SeriesIndex />} />
+      <Route path="/podcasts" element={<PodcastIndex />} />
 
-      <Route path="/add/new" element={<AddNewSeries />} />
+      <Route path="/podcasts/add" element={<AddPodcast />} />
 
-      <Route path="/add/import" element={<ImportSeriesSelectFolder />} />
+      <Route path="/podcasts/:podcastId" element={<PodcastDetailsPage />} />
 
-      <Route path="/add/import/:rootFolderId" element={<ImportSeries />} />
+      {/*
+        Old TV routes, kept as redirects so existing bookmarks still land somewhere useful
+      */}
 
       <Route
-        path="/serieseditor"
-        element={<Navigate to="/series" replace={true} />}
+        path="/series/*"
+        element={<Navigate to="/podcasts" replace={true} />}
       />
 
       <Route
-        path="/seasonpass"
-        element={<Navigate to="/series" replace={true} />}
+        path="/add/*"
+        element={<Navigate to="/podcasts/add" replace={true} />}
       />
-
-      <Route path="/series/:titleSlug" element={<SeriesDetailsPage />} />
-
-      <Route path="/statistics" element={<Statistics />} />
-
-      {/*
-        Calendar
-      */}
-
-      <Route path="/calendar" element={<CalendarPage />} />
-
-      {/*
-        Activity
-      */}
-
-      <Route path="/activity/history" element={<History />} />
-
-      <Route path="/activity/queue" element={<Queue />} />
-
-      <Route path="/activity/blocklist" element={<Blocklist />} />
-
-      {/*
-        Wanted
-      */}
-
-      <Route path="/wanted/missing" element={<Missing />} />
-
-      <Route path="/wanted/cutoffunmet" element={<CutoffUnmet />} />
 
       {/*
         Settings
@@ -101,16 +53,7 @@ export function appRouteElements() {
 
       <Route path="/settings" element={<Settings />} />
 
-      <Route path="/settings/mediamanagement" element={<MediaManagement />} />
-
-      <Route path="/settings/profiles" element={<Profiles />} />
-
-      <Route path="/settings/quality" element={<Quality />} />
-
-      <Route
-        path="/settings/customformats"
-        element={<CustomFormatSettingsPage />}
-      />
+      <Route path="/settings/rootfolders" element={<RootFolderSettings />} />
 
       <Route path="/settings/indexers" element={<IndexerSettings />} />
 
@@ -119,18 +62,7 @@ export function appRouteElements() {
         element={<DownloadClientSettings />}
       />
 
-      <Route path="/settings/importlists" element={<ImportListSettings />} />
-
-      <Route path="/settings/connect" element={<NotificationSettings />} />
-
-      <Route path="/settings/metadata" element={<MetadataSettings />} />
-
-      <Route
-        path="/settings/metadatasource"
-        element={<MetadataSourceSettings />}
-      />
-
-      <Route path="/settings/tags" element={<TagSettings />} />
+      <Route path="/settings/feeds" element={<FeedSettings />} />
 
       <Route path="/settings/general" element={<GeneralSettings />} />
 
@@ -145,8 +77,6 @@ export function appRouteElements() {
       <Route path="/system/tasks" element={<Tasks />} />
 
       <Route path="/system/backups" element={<Backups />} />
-
-      <Route path="/system/updates" element={<Updates />} />
 
       <Route path="/system/events" element={<LogsTable />} />
 

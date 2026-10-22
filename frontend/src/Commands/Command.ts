@@ -72,7 +72,18 @@ export interface ManualImportCommandBody extends BaseCommandBody {
   }>;
 }
 
+export interface RefreshPodcastCommandBody extends BaseCommandBody {
+  podcastIds: number[];
+}
+
+export interface DownloadPodcastEpisodesCommandBody extends BaseCommandBody {
+  podcastId?: number;
+  episodeIds: number[];
+}
+
 export type CommandBody =
+  | RefreshPodcastCommandBody
+  | DownloadPodcastEpisodesCommandBody
   | SeriesCommandBody
   | MultipleSeriesCommandBody
   | SeasonCommandBody

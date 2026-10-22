@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import PageContentBody from 'Components/Page/PageContentBody';
 import PageHeading from 'Components/Page/PageHeading';
 import { OverflowDivider } from 'Components/Page/Toolbar/Overflow';
@@ -9,14 +9,9 @@ import StatusIndicator from 'Components/StatusIndicator';
 import { icons } from 'Helpers/Props';
 import settingsStyles from 'Settings/Settings.module.css';
 import SettingsPage from 'Settings/SettingsPage';
-import {
-  SaveCallback,
-  SettingsStateChange,
-} from 'typings/Settings/SettingsState';
 import translate from 'Utilities/String/translate';
 import Indexers from './Indexers/Indexers';
 import ManageIndexersModal from './Indexers/Manage/ManageIndexersModal';
-import IndexerOptions from './Options/IndexerOptions';
 import { useTestAllIndexers } from './useIndexers';
 
 function IndexerSettings() {
@@ -27,24 +22,8 @@ function IndexerSettings() {
     testAllError,
   } = useTestAllIndexers();
 
-  const saveOptions = useRef<() => void>();
-
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasPendingChanges, setHasPendingChanges] = useState(false);
   const [isManageIndexersModalOpen, setIsManageIndexersModalOpen] =
     useState(false);
-
-  const handleSetChildSave = useCallback((saveCallback: SaveCallback) => {
-    saveOptions.current = saveCallback;
-  }, []);
-
-  const handleChildStateChange = useCallback(
-    ({ isSaving, hasPendingChanges }: SettingsStateChange) => {
-      setIsSaving(isSaving);
-      setHasPendingChanges(hasPendingChanges);
-    },
-    []
-  );
 
   const handleManageIndexersPress = useCallback(() => {
     setIsManageIndexersModalOpen(true);
@@ -52,10 +31,6 @@ function IndexerSettings() {
 
   const handleManageIndexersModalClose = useCallback(() => {
     setIsManageIndexersModalOpen(false);
-  }, []);
-
-  const handleSavePress = useCallback(() => {
-    saveOptions.current?.();
   }, []);
 
   const handleTestAllIndexersPress = useCallback(() => {
@@ -75,8 +50,7 @@ function IndexerSettings() {
   return (
     <SettingsPage
       title={translate('IndexerSettings')}
-      isSaving={isSaving}
-      hasPendingChanges={hasPendingChanges}
+      showSave={false}
       toolbarChildren={
         <>
           <OverflowDivider groupId="extras">
@@ -103,7 +77,6 @@ function IndexerSettings() {
           />
         </>
       }
-      onSavePress={handleSavePress}
     >
       <PageContentBody>
         {testStatusLabel ? (
@@ -130,11 +103,6 @@ function IndexerSettings() {
 
             <Indexers testResults={testAllResults} />
           </div>
-
-          <IndexerOptions
-            setChildSave={handleSetChildSave}
-            onChildStateChange={handleChildStateChange}
-          />
 
           <ManageIndexersModal
             isOpen={isManageIndexersModalOpen}

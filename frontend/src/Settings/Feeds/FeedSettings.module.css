@@ -1,0 +1,38 @@
+.intro {
+  margin: 0 0 20px;
+  max-width: 80ch;
+  color: var(--inkSoft);
+  line-height: 1.55;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.feedRow {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+  gap: 12px;
+}
+
+.feedInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.feedLabel {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.feedUrl {
+  overflow: hidden;
+  color: var(--inkMuted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-family: var(--monoSpaceFontFamily);
+}

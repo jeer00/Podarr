@@ -1,0 +1,196 @@
+.innerContentBody {
+  padding: 0;
+}
+
+.header {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.backdrop {
+  position: absolute;
+  inset: -40px;
+  z-index: -2;
+  background-position: center;
+  background-size: cover;
+  filter: blur(36px) saturate(1.2);
+}
+
+.backdropOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  padding: 48px 32px 32px;
+  color: var(--seriesOverlayInk);
+  gap: 32px;
+}
+
+.artwork {
+  flex-shrink: 0;
+  overflow: hidden;
+  width: 220px;
+  height: 220px;
+  border-radius: 12px;
+  box-shadow:
+    0 24px 60px -16px rgba(0, 0, 0, 0.55),
+    0 6px 14px -2px rgba(0, 0, 0, 0.3);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 10px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.monitorToggle {
+  composes: toggleButton from 'Components/MonitorToggleButton.module.css';
+
+  color: var(--seriesOverlayInk);
+}
+
+.title {
+  overflow: hidden;
+  color: var(--white);
+  text-wrap: balance;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  line-height: 1.15;
+}
+
+.author {
+  font-size: 16px;
+  opacity: 0.85;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background-color: var(--seriesOverlayBackdrop);
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 12px;
+  gap: 6px;
+  backdrop-filter: blur(8px);
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 6px 16px;
+
+  a {
+    color: inherit;
+    opacity: 0.8;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+.path {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--monoSpaceFontFamily);
+  opacity: 0.8;
+  gap: 6px;
+}
+
+.contentContainer {
+  padding: 28px 32px 64px;
+}
+
+.description {
+  margin: 0 0 28px;
+  max-width: 80ch;
+  color: var(--inkSoft);
+  white-space: pre-line;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.episodesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
+  gap: 12px;
+}
+
+.episodesTitle {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 18px;
+  gap: 10px;
+}
+
+.episodesCount {
+  color: var(--inkMuted);
+  font-weight: 400;
+  font-size: 14px;
+}
+
+.episodesActions {
+  display: flex;
+  gap: 8px;
+}
+
+.episodes {
+  display: flex;
+  flex-direction: column;
+}
+
+.showMore {
+  margin-top: 16px;
+  text-align: center;
+}
+
+@media (--breakpointSmall) {
+  .headerContent {
+    padding: 32px 16px 20px;
+    gap: 16px;
+  }
+
+  .artwork {
+    width: 96px;
+    height: 96px;
+  }
+
+  .contentContainer {
+    padding: 20px 16px 48px;
+  }
+}

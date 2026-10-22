@@ -12,6 +12,7 @@ import { useUpdateCommand } from 'Commands/useCommands';
 import Episode from 'Episode/Episode';
 import { EpisodeFile } from 'EpisodeFile/EpisodeFile';
 import { PagedQueryResponse } from 'Helpers/Hooks/usePagedApiQuery';
+import { Podcast, PodcastEpisode } from 'Podcasts/Podcast';
 import Series from 'Series/Series';
 import { DownloadClientModel } from 'Settings/DownloadClients/DownloadClients/useDownloadClients';
 import { ImportListModel } from 'Settings/ImportLists/ImportLists/useImportLists';
@@ -75,7 +76,8 @@ function SignalRListener() {
 
     // Repopulate the page (if a repopulator is set) to ensure things
     // are in sync after reconnecting.
-    queryClient.invalidateQueries({ queryKey: ['/series'] });
+    queryClient.invalidateQueries({ queryKey: ['/podcast'] });
+    queryClient.invalidateQueries({ queryKey: ['/podcastEpisode'] });
     queryClient.invalidateQueries({ queryKey: ['/command'] });
 
     repopulatePage();
@@ -226,6 +228,39 @@ function SignalRListener() {
         );
       } else if (body.action === 'deleted') {
         removeQueryClientItem(queryClient, ['/connection'], body.resource.id);
+      }
+
+      return;
+    }
+
+    if (name === 'podcast') {
+      if (body.action === 'created' || body.action === 'updated') {
+        updateQueryClientItem(
+          queryClient,
+          ['/podcast'],
+          body.resource as Podcast,
+          true
+        );
+      } else if (body.action === 'deleted') {
+        removeQueryClientItem(queryClient, ['/podcast'], body.resource.id);
+      }
+
+      return;
+    }
+
+    if (name === 'podcastdownload') {
+      queryClient.invalidateQueries({ queryKey: ['/podcastDownload'] });
+      return;
+    }
+
+    if (name === 'podcastepisode') {
+      if (body.action === 'updated') {
+        updateQueryClientItem(
+          queryClient,
+          ['/podcastEpisode'],
+          body.resource as PodcastEpisode,
+          false
+        );
       }
 
       return;
