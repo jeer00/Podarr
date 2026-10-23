@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import PageContentBody from 'Components/Page/PageContentBody';
 import PageHeading from 'Components/Page/PageHeading';
 import { OverflowDivider } from 'Components/Page/Toolbar/Overflow';
@@ -9,15 +9,10 @@ import StatusIndicator from 'Components/StatusIndicator';
 import { icons } from 'Helpers/Props';
 import settingsStyles from 'Settings/Settings.module.css';
 import SettingsPage from 'Settings/SettingsPage';
-import {
-  SaveCallback,
-  SettingsStateChange,
-} from 'typings/Settings/SettingsState';
 import translate from 'Utilities/String/translate';
 import DownloadClients from './DownloadClients/DownloadClients';
 import ManageDownloadClientsModal from './DownloadClients/Manage/ManageDownloadClientsModal';
 import { useTestAllDownloadClients } from './DownloadClients/useDownloadClients';
-import DownloadClientOptions from './Options/DownloadClientOptions';
 import RemotePathMappings from './RemotePathMappings/RemotePathMappings';
 
 function DownloadClientSettings() {
@@ -28,26 +23,10 @@ function DownloadClientSettings() {
     testAllError,
   } = useTestAllDownloadClients();
 
-  const saveOptions = useRef<() => void>();
-
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasPendingChanges, setHasPendingChanges] = useState(false);
   const [
     isManageDownloadClientsModalOpen,
     setIsManageDownloadClientsModalOpen,
   ] = useState(false);
-
-  const handleSetChildSave = useCallback((saveCallback: SaveCallback) => {
-    saveOptions.current = saveCallback;
-  }, []);
-
-  const handleChildStateChange = useCallback(
-    ({ isSaving, hasPendingChanges }: SettingsStateChange) => {
-      setIsSaving(isSaving);
-      setHasPendingChanges(hasPendingChanges);
-    },
-    []
-  );
 
   const handleManageDownloadClientsPress = useCallback(() => {
     setIsManageDownloadClientsModalOpen(true);
@@ -55,10 +34,6 @@ function DownloadClientSettings() {
 
   const handleManageDownloadClientsModalClose = useCallback(() => {
     setIsManageDownloadClientsModalOpen(false);
-  }, []);
-
-  const handleSavePress = useCallback(() => {
-    saveOptions.current?.();
   }, []);
 
   const handleTestAllDownloadClientsPress = useCallback(() => {
@@ -78,8 +53,7 @@ function DownloadClientSettings() {
   return (
     <SettingsPage
       title={translate('DownloadClientSettings')}
-      isSaving={isSaving}
-      hasPendingChanges={hasPendingChanges}
+      showSave={false}
       toolbarChildren={
         <>
           <OverflowDivider groupId="extras">
@@ -106,7 +80,6 @@ function DownloadClientSettings() {
           />
         </>
       }
-      onSavePress={handleSavePress}
     >
       <PageContentBody>
         {testStatusLabel ? (
@@ -133,11 +106,6 @@ function DownloadClientSettings() {
 
             <DownloadClients testResults={testAllResults} />
           </div>
-
-          <DownloadClientOptions
-            setChildSave={handleSetChildSave}
-            onChildStateChange={handleChildStateChange}
-          />
 
           <RemotePathMappings />
 

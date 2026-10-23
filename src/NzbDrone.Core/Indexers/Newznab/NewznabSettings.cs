@@ -56,7 +56,9 @@ namespace NzbDrone.Core.Indexers.Newznab
         public NewznabSettings()
         {
             ApiPath = "/api";
-            Categories = new[] { 5030, 5040 };
+
+            // Audio, the closest standard Newznab category to podcasts. Trackers often have their own podcast category.
+            Categories = new[] { 3000 };
             AnimeCategories = Enumerable.Empty<int>();
             MultiLanguages = Array.Empty<int>();
             FailDownloads = Array.Empty<int>();

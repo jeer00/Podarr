@@ -6,7 +6,6 @@ using NLog.Config;
 using NLog.Targets;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Common.Extensions;
-using NzbDrone.Common.Instrumentation.Sentry;
 
 namespace NzbDrone.Common.Instrumentation
 {
@@ -45,7 +44,7 @@ namespace NzbDrone.Common.Instrumentation
                 RegisterDebugger();
             }
 
-            RegisterSentry(updateApp, appFolderInfo);
+            RegisterSentry(updateApp);
 
             if (updateApp)
             {
@@ -66,40 +65,11 @@ namespace NzbDrone.Common.Instrumentation
             LogManager.ReconfigExistingLoggers();
         }
 
-        private static void RegisterSentry(bool updateClient, IAppFolderInfo appFolderInfo)
+        private static void RegisterSentry(bool updateClient)
         {
-            string dsn;
-
-            if (updateClient)
-            {
-                dsn = RuntimeInfo.IsProduction
-                    ? "https://80777986b95f44a1a90d1eb2f3af1e36@sentry.sonarr.tv/11"
-                    : "https://6168f0946aba4e60ac23e469ac08eac5@sentry.sonarr.tv/9";
-            }
-            else
-            {
-                dsn = RuntimeInfo.IsProduction
-                    ? "https://e2adcbe52caf46aeaebb6b1dcdfe10a1@sentry.sonarr.tv/8"
-                    : "https://4ee3580e01d8407c96a7430fbc953512@sentry.sonarr.tv/10";
-            }
-
-            Target target;
-            try
-            {
-                target = new SentryTarget(dsn, appFolderInfo)
-                {
-                    Name = "sentryTarget",
-                    Layout = "${message}"
-                };
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Failed to load dependency, may need an OS update: " + ex.ToString());
-                LogManager.GetLogger(nameof(NzbDroneLogger)).Debug(ex, "Failed to load dependency, may need an OS update");
-
-                // We still need the logging rules, so use a null target.
-                target = new NullTarget();
-            }
+            // Podarr is a fork, errors must not be reported to Sonarr's Sentry instance.
+            // The logging rules are still registered so events logged to "Sentry" stay out of the regular logs.
+            Target target = new NullTarget();
 
             var loggingRule = new LoggingRule("*", updateClient ? LogLevel.Trace : LogLevel.Warn, target);
             LogManager.Configuration.AddTarget("sentryTarget", target);

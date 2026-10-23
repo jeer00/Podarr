@@ -1,0 +1,73 @@
+.searchInfo {
+  margin-bottom: 12px;
+  color: var(--inkMuted);
+  font-size: 13px;
+}
+
+.filter {
+  margin-bottom: 8px;
+}
+
+.tableContainer {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.header {
+  padding: 8px;
+  border-bottom: 1px solid var(--hairlineStrong);
+  color: var(--inkMuted);
+  text-align: left;
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.row {
+  &:hover {
+    background-color: var(--paperWarm);
+  }
+}
+
+.cell,
+.titleCell,
+.actionCell {
+  padding: 8px;
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: middle;
+  font-size: 13px;
+}
+
+.cell {
+  white-space: nowrap;
+}
+
+.titleCell {
+  min-width: 260px;
+  word-break: break-word;
+}
+
+.title {
+  color: var(--ink);
+}
+
+.matchBadge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: var(--successColor);
+  color: var(--white);
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 11px;
+}
+
+.actionCell {
+  width: 40px;
+  text-align: center;
+}

@@ -38,6 +38,17 @@ namespace NzbDrone.Core.HealthCheck
         private bool _hasRunHealthChecksAfterGracePeriod;
         private bool _isRunningHealthChecksAfterGracePeriod;
 
+        // Indexers, download clients and Sonarr's update channel aren't used for podcasts,
+        // and Sonarr's server-side notifications don't apply to this fork.
+        private static readonly HashSet<Type> DisabledHealthChecks = new HashSet<Type>
+        {
+            typeof(Checks.DownloadClientCheck),
+            typeof(Checks.IndexerRssCheck),
+            typeof(Checks.IndexerSearchCheck),
+            typeof(Checks.UpdateCheck),
+            typeof(ServerSideNotificationService)
+        };
+
         public HealthCheckService(IEnumerable<IProvideHealthCheck> healthChecks,
                                   IEventAggregator eventAggregator,
                                   ICacheManager cacheManager,
@@ -45,7 +56,7 @@ namespace NzbDrone.Core.HealthCheck
                                   IRuntimeInfo runtimeInfo,
                                   Logger logger)
         {
-            _healthChecks = healthChecks.ToArray();
+            _healthChecks = healthChecks.Where(c => !DisabledHealthChecks.Contains(c.GetType())).ToArray();
             _eventAggregator = eventAggregator;
             _logger = logger;
 
