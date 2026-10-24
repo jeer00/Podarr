@@ -103,6 +103,73 @@ namespace NzbDrone.Core.Configuration
             set { SetValue("RecycleBin", value); }
         }
 
+        public bool PodcastFeedsEnabled
+        {
+            get { return GetValueBoolean("PodcastFeedsEnabled", false); }
+            set { SetValue("PodcastFeedsEnabled", value); }
+        }
+
+        // Part of every feed URL so podcast apps can subscribe without the API key.
+        public string PodcastFeedToken
+        {
+            get { return GetValue("PodcastFeedToken", Guid.NewGuid().ToString("N"), persist: true); }
+            set { SetValue("PodcastFeedToken", value); }
+        }
+
+        public string PodcastFeedBaseUrl
+        {
+            get { return GetValue("PodcastFeedBaseUrl", string.Empty); }
+            set { SetValue("PodcastFeedBaseUrl", value); }
+        }
+
+        public bool PodcastFeedS3Enabled
+        {
+            get { return GetValueBoolean("PodcastFeedS3Enabled", false); }
+            set { SetValue("PodcastFeedS3Enabled", value); }
+        }
+
+        public string PodcastFeedS3Endpoint
+        {
+            get { return GetValue("PodcastFeedS3Endpoint", string.Empty); }
+            set { SetValue("PodcastFeedS3Endpoint", value ?? string.Empty); }
+        }
+
+        public string PodcastFeedS3Region
+        {
+            get { return GetValue("PodcastFeedS3Region", string.Empty); }
+            set { SetValue("PodcastFeedS3Region", value ?? string.Empty); }
+        }
+
+        public string PodcastFeedS3Bucket
+        {
+            get { return GetValue("PodcastFeedS3Bucket", string.Empty); }
+            set { SetValue("PodcastFeedS3Bucket", value ?? string.Empty); }
+        }
+
+        public string PodcastFeedS3AccessKey
+        {
+            get { return GetValue("PodcastFeedS3AccessKey", string.Empty); }
+            set { SetValue("PodcastFeedS3AccessKey", value ?? string.Empty); }
+        }
+
+        public string PodcastFeedS3SecretKey
+        {
+            get { return GetValue("PodcastFeedS3SecretKey", string.Empty); }
+            set { SetValue("PodcastFeedS3SecretKey", value ?? string.Empty); }
+        }
+
+        public string PodcastFeedS3Prefix
+        {
+            get { return GetValue("PodcastFeedS3Prefix", string.Empty); }
+            set { SetValue("PodcastFeedS3Prefix", value ?? string.Empty); }
+        }
+
+        public string PodcastFeedS3PublicUrl
+        {
+            get { return GetValue("PodcastFeedS3PublicUrl", string.Empty); }
+            set { SetValue("PodcastFeedS3PublicUrl", value ?? string.Empty); }
+        }
+
         public int RecycleBinCleanupDays
         {
             get { return GetValueInt("RecycleBinCleanupDays", 7); }

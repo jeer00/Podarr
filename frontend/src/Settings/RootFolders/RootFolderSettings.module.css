@@ -1,0 +1,43 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background-color: var(--paperCard);
+  gap: 12px;
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--inkMuted);
+}
+
+.info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--monoSpaceFontFamily);
+}
+
+.meta {
+  margin-top: 2px;
+  color: var(--inkMuted);
+  font-size: 12px;
+}
+
+.addIcon {
+  margin-right: 8px;
+}

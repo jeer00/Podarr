@@ -1,0 +1,6 @@
+.path {
+  padding: 6px 0;
+  color: var(--inkMuted);
+  word-break: break-all;
+  font-family: var(--monoSpaceFontFamily);
+}

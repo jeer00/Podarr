@@ -30,6 +30,8 @@ using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Organizer;
 using NzbDrone.Core.Parser.Model;
+using NzbDrone.Core.Podcasts;
+using NzbDrone.Core.Podcasts.Tracker;
 using NzbDrone.Core.Profiles;
 using NzbDrone.Core.Profiles.Delay;
 using NzbDrone.Core.Profiles.Qualities;
@@ -120,6 +122,15 @@ namespace NzbDrone.Core.Datastore
                   .HasOne(s => s.QualityProfile, s => s.QualityProfileId);
 
             Mapper.Entity<SeriesTranslation>("SeriesTranslations").RegisterModel();
+
+            Mapper.Entity<Podcast>("Podcasts").RegisterModel()
+                  .Ignore(p => p.RootFolderPath);
+
+            Mapper.Entity<PodcastEpisode>("PodcastEpisodes").RegisterModel()
+                  .Ignore(e => e.HasFile);
+
+            Mapper.Entity<PodcastDownload>("PodcastDownloads").RegisterModel()
+                  .Ignore(d => d.IsActive);
 
             Mapper.Entity<EpisodeFile>("EpisodeFiles").RegisterModel()
                   .HasOne(f => f.Series, f => f.SeriesId)

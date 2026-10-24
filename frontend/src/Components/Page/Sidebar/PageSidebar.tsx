@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import ReactDOM from 'react-dom';
 import { useLocation } from 'react-router';
-import QueueStatus from 'Activity/Queue/Status/QueueStatus';
 import {
   setIsSidebarVisible,
   useAppDimension,
@@ -56,72 +55,15 @@ const GROUPS: SidebarGroup[] = [
     label: () => translate('Media'),
     items: [
       {
-        iconName: icons.HOME,
-        title: () => translate('Home'),
-        to: '/',
-        isHidden: true,
-      },
-      {
-        iconName: icons.SERIES_CONTINUING,
-        title: () => translate('Series'),
-        to: '/series',
-        alias: '/serieseditor',
+        iconName: icons.PODCAST,
+        title: () => translate('Podcasts'),
+        to: '/podcasts',
         children: [
           {
             title: () => translate('AddNew'),
-            to: '/add/new',
-          },
-          {
-            title: () => translate('LibraryImport'),
-            to: '/add/import',
+            to: '/podcasts/add',
           },
         ],
-      },
-      {
-        iconName: icons.CALENDAR,
-        title: () => translate('Calendar'),
-        to: '/calendar',
-      },
-      {
-        iconName: icons.STATISTICS,
-        title: () => translate('Statistics'),
-        to: '/statistics',
-      },
-      {
-        iconName: icons.WARNING,
-        title: () => translate('Wanted'),
-        to: '/wanted/missing',
-        children: [
-          {
-            title: () => translate('Missing'),
-            to: '/wanted/missing',
-          },
-          {
-            title: () => translate('CutoffUnmet'),
-            to: '/wanted/cutoffunmet',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    label: () => translate('Activity'),
-    items: [
-      {
-        iconName: icons.DOWNLOAD,
-        title: () => translate('Queue'),
-        to: '/activity/queue',
-        statusComponent: QueueStatus,
-      },
-      {
-        iconName: icons.HISTORY,
-        title: () => translate('History'),
-        to: '/activity/history',
-      },
-      {
-        iconName: icons.BLOCKLIST,
-        title: () => translate('Blocklist'),
-        to: '/activity/blocklist',
       },
     ],
   },
@@ -133,31 +75,15 @@ const GROUPS: SidebarGroup[] = [
         to: '/settings',
         children: [
           {
-            title: () => translate('MediaManagement'),
-            to: '/settings/mediamanagement',
-          },
-          { title: () => translate('Profiles'), to: '/settings/profiles' },
-          { title: () => translate('Quality'), to: '/settings/quality' },
-          {
-            title: () => translate('CustomFormats'),
-            to: '/settings/customformats',
+            title: () => translate('RootFolders'),
+            to: '/settings/rootfolders',
           },
           { title: () => translate('Indexers'), to: '/settings/indexers' },
           {
             title: () => translate('DownloadClients'),
             to: '/settings/downloadclients',
           },
-          {
-            title: () => translate('ImportLists'),
-            to: '/settings/importlists',
-          },
-          { title: () => translate('Connect'), to: '/settings/connect' },
-          { title: () => translate('Metadata'), to: '/settings/metadata' },
-          {
-            title: () => translate('MetadataSource'),
-            to: '/settings/metadatasource',
-          },
-          { title: () => translate('Tags'), to: '/settings/tags' },
+          { title: () => translate('PodcastFeeds'), to: '/settings/feeds' },
           { title: () => translate('General'), to: '/settings/general' },
           { title: () => translate('Ui'), to: '/settings/ui' },
         ],
@@ -174,7 +100,6 @@ const GROUPS: SidebarGroup[] = [
           },
           { title: () => translate('Tasks'), to: '/system/tasks' },
           { title: () => translate('Backups'), to: '/system/backups' },
-          { title: () => translate('Updates'), to: '/system/updates' },
           { title: () => translate('Events'), to: '/system/events' },
           { title: () => translate('LogFiles'), to: '/system/logs/files' },
         ],
@@ -308,7 +233,7 @@ function PageSidebar() {
                 src={`${window.Sonarr.urlBase}/Content/Images/logo.svg`}
                 alt=""
               />
-              <span className={styles.brandName}>Sonarr</span>
+              <span className={styles.brandName}>Podarr</span>
             </Link>
           </div>
 

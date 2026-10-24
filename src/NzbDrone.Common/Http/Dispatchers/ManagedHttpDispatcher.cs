@@ -187,6 +187,10 @@ namespace NzbDrone.Common.Http.Dispatchers
                     case "Accept":
                         webRequest.Headers.Accept.ParseAdd(header.Value);
                         break;
+                    case "Authorization":
+                        // Not every scheme fits .NET's parser, eg. AWS Signature V4 used by S3 compatible storage.
+                        webRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                        break;
                     case "Connection":
                         webRequest.Headers.Connection.Clear();
                         webRequest.Headers.Connection.Add(header.Value);
